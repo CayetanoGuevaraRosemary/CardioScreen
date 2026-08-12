@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  --color-clinical-bg: #eef2f7;
+  --color-clinical-surface: #f8fafd;
+  --color-clinical-card: #ffffff;
+
+  --color-clinical-blue-50: #e8f1fb;
+  --color-clinical-blue-100: #c8ddf5;
+  --color-clinical-blue-500: #1a6fa8;
+  --color-clinical-blue-600: #155d8f;
+  --color-clinical-blue-700: #0f4a73;
+  --color-clinical-blue-900: #0a2f4a;
+
+  --color-clinical-teal-400: #2aabb8;
+  --color-clinical-teal-500: #1d95a1;
+  --color-clinical-teal-600: #167a85;
+
+  --color-result-green-bg: #d1fae5;
+  --color-result-green-border: #6ee7b7;
+  --color-result-green-text: #065f46;
+  --color-result-green-solid: #059669;
+
+  --color-result-yellow-bg: #fef9c3;
+  --color-result-yellow-border: #fde047;
+  --color-result-yellow-text: #713f12;
+  --color-result-yellow-solid: #ca8a04;
+
+  --color-result-red-bg: #fee2e2;
+  --color-result-red-border: #fca5a5;
+  --color-result-red-text: #7f1d1d;
+  --color-result-red-solid: #dc2626;
+
+  --color-offline-bg: #fff7ed;
+  --color-offline-border: #fed7aa;
+  --color-offline-text: #9a3412;
+
+  --color-muted: #64748b;
+  --color-muted-light: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #2a3f5a;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  background: var(--color-clinical-bg);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 0 60px rgba(0,0,0,0.4);
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
