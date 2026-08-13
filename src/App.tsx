@@ -6,6 +6,7 @@ import { getSession, clearSession, type Medico } from './lib/auth'
 import { obtenerAltitud } from './lib/geolocation'
 import { guardarTamizaje, obtenerHistorial, type Tamizaje } from './lib/tamizajes'
 import { getInstrucciones } from './lib/risk'
+import { jsPDF } from 'jspdf'
 import type { Paciente } from './lib/patients'
 import { PatientProvider, usePatient } from './context/PatientContext'
 
@@ -603,6 +604,32 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     )
   }, [tamizajeActual, paciente])
 
+  const [copiado, setCopiado] = useState(false)
+  const handleCopiar = async () => {
+    await navigator.clipboard.writeText(editableText)
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 1800)
+  }
+  const handleSMS = () => {
+    window.location.href = `sms:?&body=${encodeURIComponent(editableText)}`
+  }
+  const handleWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(editableText)}`, '_blank')
+  }
+  const handlePDF = () => {
+    const doc = new jsPDF()
+    doc.setFontSize(14)
+    doc.text('Documento de Derivación — CardioScreen', 14, 18)
+    doc.setFontSize(10)
+    doc.text(`Paciente: ${paciente?.nombre || '—'}   DNI: ${paciente?.dni || '—'}`, 14, 28)
+    doc.text(`Fecha: ${new Date().toLocaleString('es-PE')}`, 14, 34)
+    doc.setFontSize(11)
+    const lines = doc.splitTextToSize(editableText, 180)
+    doc.text(lines, 14, 46)
+    doc.autoPrint()
+    window.open(doc.output('bloburl'), '_blank')
+  }
+
   const facilities = [
     { name: 'Hospital Regional Huancavelica', dist: '12 km', time: '25 min', status: 'Disponible', urgencia: 'alta', phone: '+51 67 452 890' },
     { name: 'HRDLM Huancayo', dist: '48 km', time: '1h 10min', status: 'Disponible', urgencia: 'media', phone: '+51 64 231 456' },
@@ -630,12 +657,18 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
           onFocus={e => { e.currentTarget.style.borderColor = '#1a6fa8' }}
           onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0' }}
         />
-        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-          <button style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            📋 Copiar
+        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={handleCopiar} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            {copiado ? '✓ Copiado' : '📋 Copiar'}
           </button>
-          <button style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            📄 Vista Previa PDF
+          <button onClick={handlePDF} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            📄 PDF / Imprimir
+          </button>
+          <button onClick={handleSMS} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            💬 SMS
+          </button>
+          <button onClick={handleWhatsApp} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #86efac', background: '#dcfce7', color: '#166534', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            🟢 WhatsApp
           </button>
         </div>
       </SectionCard>
@@ -737,7 +770,7 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
       if (data.length === 0) return
       setHistorial(data.map((t, i) => ({
         id: t.id ?? `T-${i}`,
-        paciente: t.paciente_dni,
+        paciente: `DNI ${t.paciente_dni}`,
         fecha: t.creado_en ? new Date(t.creado_en).toLocaleString('es-PE') : '—',
         spo2Pre: t.spo2_pre, spo2Post: t.spo2_post, altitud: t.altitud,
         resultado: t.resultado, syncStatus: t.sync_status ?? 'synced',
@@ -871,8 +904,7 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{s.paciente}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>{s.id} · {s.fecha}</div>
-              </div>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>{s.id} · {s.fecha}</div><div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{s.altitud.toLocaleString('es-PE')} m.s.n.m. · {s.fecha}</div>              </div>
               <div style={{ padding: '4px 10px', borderRadius: 20, background: syncCfg.bg, border: `1px solid ${s.syncStatus === 'synced' ? '#6ee7b7' : s.syncStatus === 'pending' ? '#fde047' : '#fca5a5'}`, flexShrink: 0 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: syncCfg.color, fontFamily: 'Outfit, sans-serif' }}>
                   {syncCfg.icon} {syncCfg.label}
@@ -1066,9 +1098,11 @@ export default function App() {
               </div>
             )}
             <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onLogout={() => { clearSession(); setMedico(null) }} />
-            <div style={{ padding: '12px 16px 0' }}>
-              <PatientPicker />
-            </div>
+            {screen !== 'tutorial' && screen !== 'alertas' && (
+              <div style={{ padding: '12px 16px 0' }}>
+                <PatientPicker />
+              </div>
+            )}
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease' }} key={screen}>
               {screen === 'tutorial' && <TutorialScreen onIniciarTamizaje={() => setScreen('medicion')} />}
               {screen === 'medicion' && <MedicionScreen networkStatus={networkStatus} />}
