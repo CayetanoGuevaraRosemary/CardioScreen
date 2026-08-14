@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import TutorialScreen from './components/TutorialScreen'
 import Login from './components/Login'
 import PatientPicker from './components/PatientPicker'
+import ProfileModal from './components/ProfileModal'
 import { getSession, clearSession, type Medico } from './lib/auth'
 import { obtenerAltitud } from './lib/geolocation'
 import { guardarTamizaje, obtenerHistorial, type Tamizaje } from './lib/tamizajes'
@@ -32,9 +33,9 @@ function getAltitudeTier(alt: number): { label: string; tier: 1 | 2 | 3 } {
 }
 
 function getThresholds(tier: 1 | 2 | 3) {
-  if (tier === 1) return { negMin: 95, repMin: 90, positMax: 89 }
-  if (tier === 2) return { negMin: 92, repMin: 87, positMax: 86 }
-  return { negMin: 88, repMin: 83, positMax: 82 }
+  if (tier === 1) return { negMin: 95, repMin: 90, positMax: 89, maxReintentos: 2 }
+  if (tier === 2) return { negMin: 92, repMin: 87, positMax: 86, maxReintentos: 3 }
+  return { negMin: 88, repMin: 83, positMax: 82, maxReintentos: 3 }
 }
 
 function classifyResult(pre: number, post: number, alt: number): ResultClass {
@@ -137,7 +138,7 @@ const IconSend = () => (
   </svg>
 )
 
-function TopBar({ networkStatus, screen, medico, onLogout }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onLogout?: () => void }) {
+function TopBar({ networkStatus, screen, medico, onProfileClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onProfileClick?: () => void }) {
   const titles: Record<Screen, string> = {
     tutorial: 'Tutorial de Tamizaje',
     medicion: 'Medición SpO₂',
@@ -154,8 +155,8 @@ function TopBar({ networkStatus, screen, medico, onLogout }: { networkStatus: Ne
           </svg>
         </div>
         <div>
-          <div style={{ color: 'white', fontWeight: 700, fontSize: 14, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>CardioScreen</div>
-          <div style={{ color: '#7bb8e8', fontSize: 11, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>{titles[screen]}</div>
+          <div style={{ color: 'white', fontWeight: 700, fontSize: 16.1, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>CardioScreen</div>
+          <div style={{ color: '#7bb8e8', fontSize: 12.6, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>{titles[screen]}</div>
         </div>
       </div>
       <div style={{
@@ -165,7 +166,7 @@ function TopBar({ networkStatus, screen, medico, onLogout }: { networkStatus: Ne
       }}>
         {networkStatus === 'syncing' ? <IconSync /> : <IconWifi off={networkStatus === 'offline'} />}
         <span style={{
-          fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', fontFamily: 'Outfit, sans-serif',
+          fontSize: 12.6, fontWeight: 600, letterSpacing: '0.02em', fontFamily: 'Outfit, sans-serif',
           color: networkStatus === 'offline' ? '#fb923c' : networkStatus === 'syncing' ? '#60a5fa' : '#34d399',
         }}>
           {networkStatus === 'offline' ? 'Sin Conexión' : networkStatus === 'syncing' ? 'Sincronizando' : 'En Línea'}
@@ -173,11 +174,11 @@ function TopBar({ networkStatus, screen, medico, onLogout }: { networkStatus: Ne
       </div>
       {medico && (
         <button
-          onClick={onLogout}
-          title="Cerrar sesión"
-          style={{ marginLeft: 8, padding: '5px 10px', borderRadius: 20, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#7bb8e8', fontSize: 10, fontWeight: 600, fontFamily: 'Outfit, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          onClick={onProfileClick}
+          title="Mi perfil"
+          style={{ marginLeft: 8, width: 30, height: 30, flexShrink: 0, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 13.8, fontWeight: 700, fontFamily: 'Outfit, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          {medico.nombre.split(' ')[0]} ⏻
+          {medico.nombre.trim().charAt(0).toUpperCase()}
         </button>
       )}
     </div>
@@ -208,7 +209,7 @@ function BottomNav({ screen, setScreen }: { screen: Screen; setScreen: (s: Scree
             }}
           >
             <Icon active={active} />
-            <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, color: active ? '#1a6fa8' : '#64748b', fontFamily: 'Outfit, sans-serif' }}>{label}</span>
+            <span style={{ fontSize: 11.5, fontWeight: active ? 600 : 400, color: active ? '#1a6fa8' : '#64748b', fontFamily: 'Outfit, sans-serif' }}>{label}</span>
           </button>
         )
       })}
@@ -237,7 +238,7 @@ function BigButton({ onClick, children, color = '#1a6fa8', disabled, style }: {
       style={{
         width: '100%', minHeight: 56, padding: '14px 20px', borderRadius: 14,
         background: disabled ? '#94a3b8' : color, color: '#fff',
-        fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 16,
+        fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 18.4,
         border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
         boxShadow: disabled ? 'none' : `0 4px 14px ${color}55`,
@@ -251,7 +252,7 @@ function BigButton({ onClick, children, color = '#1a6fa8', disabled, style }: {
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, fontFamily: 'Outfit, sans-serif' }}>
+    <div style={{ fontSize: 13.8, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, fontFamily: 'Outfit, sans-serif' }}>
       {children}{required && <span style={{ color: '#dc2626', marginLeft: 4 }}>*</span>}
     </div>
   )
@@ -271,7 +272,7 @@ function NumInput({ value, onChange, placeholder, min, max }: {
       style={{
         width: '100%', minHeight: 56, padding: '14px 16px', borderRadius: 12,
         border: '2px solid #e2e8f0', background: '#f8fafd',
-        fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, fontSize: 22,
+        fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, fontSize: 25.3,
         color: '#0f4a73', textAlign: 'center', outline: 'none',
         transition: 'border-color 0.15s',
       }}
@@ -305,7 +306,7 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   const post = parseInt(spo2Post)
   const diff = !isNaN(pre) && !isNaN(post) ? Math.abs(pre - post) : null
   const { label: tierLabel, tier } = getAltitudeTier(alt)
-  const { negMin, repMin } = getThresholds(tier)
+  const { negMin, repMin, maxReintentos } = getThresholds(tier)
   const result: ResultClass = !isNaN(pre) && !isNaN(post) && pre > 0 && post > 0 ? classifyResult(pre, post, alt) : null
 
   const resultConfig = {
@@ -315,9 +316,9 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   }
 
   const tierBanner = {
-    1: { label: 'Nivel Mar (0–2,499 m)', desc: `SpO₂ ≥ ${negMin}% normal • ${negMin - 3}–${negMin - 1}% repetir • < ${repMin - 1}% derivar`, bg: '#e8f1fb', border: '#c8ddf5', text: '#155d8f' },
-    2: { label: 'Altitud Media (2,500–3,599 m)', desc: `SpO₂ ≥ ${negMin}% normal • ${negMin - 3}–${negMin - 1}% repetir • < ${repMin - 1}% derivar`, bg: '#e0f7f9', border: '#b2ebf2', text: '#0a6b75' },
-    3: { label: 'Gran Altitud (3,600–4,500 m)', desc: `SpO₂ ≥ ${negMin}% normal • ${negMin - 3}–${negMin - 1}% repetir • < ${repMin - 1}% derivar`, bg: '#fef9c3', border: '#fde047', text: '#713f12' },
+    1: { label: 'Nivel Mar (0–2,499 m)', bg: '#e8f1fb', border: '#c8ddf5', text: '#155d8f' },
+    2: { label: 'Altitud Media (2,500–3,599 m)', bg: '#e0f7f9', border: '#b2ebf2', text: '#0a6b75' },
+    3: { label: 'Gran Altitud (3,600–4,500 m)', bg: '#fef9c3', border: '#fde047', text: '#713f12' },
   }[tier]
 
   const handleGuardar = async () => {
@@ -340,24 +341,38 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
             <NumInput value={altitud} onChange={setAltitud} placeholder="m.s.n.m." min={0} max={5000} />
           </div>
           <div style={{ flexShrink: 0, padding: '10px 14px', background: '#eef2f7', borderRadius: 12, border: '1px solid #e2e8f0', minHeight: 56, display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13, fontWeight: 500, color: '#64748b' }}>m.s.n.m.</span>
+            <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, fontWeight: 500, color: '#64748b' }}>m.s.n.m.</span>
           </div>
         </div>
         <button
           onClick={handleUsarUbicacion}
           disabled={buscandoUbicacion}
-          style={{ marginTop: 8, width: '100%', padding: '10px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+          style={{ marginTop: 8, width: '100%', padding: '10px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13.8, cursor: 'pointer' }}
         >
           {buscandoUbicacion ? 'Obteniendo ubicación...' : '📍 Usar mi ubicación para la altitud'}
         </button>
         {geoError && (
-          <div style={{ marginTop: 8, padding: '8px 12px', background: '#fff7ed', borderRadius: 10, border: '1px solid #fed7aa', fontSize: 11, color: '#9a3412', fontFamily: 'Outfit, sans-serif' }}>
+          <div style={{ marginTop: 8, padding: '8px 12px', background: '#fff7ed', borderRadius: 10, border: '1px solid #fed7aa', fontSize: 12.6, color: '#9a3412', fontFamily: 'Outfit, sans-serif' }}>
             ⚠ {geoError} Puedes editar el campo de altitud arriba.
           </div>
         )}
-        <div style={{ marginTop: 10, padding: '10px 14px', background: tierBanner.bg, borderRadius: 10, border: `1px solid ${tierBanner.border}` }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: tierBanner.text, fontFamily: 'Outfit, sans-serif' }}>{tierBanner.label}</div>
-          <div style={{ fontSize: 12, color: tierBanner.text, fontFamily: 'Outfit, sans-serif', marginTop: 2, opacity: 0.8 }}>{tierBanner.desc}</div>
+        <div style={{ marginTop: 10, padding: '12px 14px', background: tierBanner.bg, borderRadius: 12, border: `1px solid ${tierBanner.border}` }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: tierBanner.text, fontFamily: 'Outfit, sans-serif', marginBottom: 8 }}>{tierBanner.label}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+              <span style={{ fontSize: 13.8, color: tierBanner.text, fontFamily: 'Outfit, sans-serif' }}><b>NEGATIVO:</b> ambas ≥ {negMin}% y diff ≤ 3%</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
+              <span style={{ fontSize: 13.8, color: tierBanner.text, fontFamily: 'Outfit, sans-serif' }}><b>REPETIR:</b> {repMin}–{negMin - 1}% cualquiera o diff &gt; 3%</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+              <span style={{ fontSize: 13.8, color: tierBanner.text, fontFamily: 'Outfit, sans-serif' }}><b>POSITIVO:</b> &lt; {repMin}% cualquier extremidad</span>
+            </div>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 12.6, color: tierBanner.text, fontFamily: 'Outfit, sans-serif', opacity: 0.75 }}>Máx. reintentos: {maxReintentos}</div>
         </div>
       </SectionCard>
 
@@ -365,21 +380,21 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
             <Label required>SpO₂ Preductal</Label>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>Mano Derecha</div>
+            <div style={{ fontSize: 12.6, color: '#64748b', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>Mano Derecha</div>
             <NumInput value={spo2Pre} onChange={setSpo2Pre} placeholder="–" min={50} max={100} />
-            <div style={{ textAlign: 'center', marginTop: 6, fontSize: 18 }}>🤚</div>
+            <div style={{ textAlign: 'center', marginTop: 6, fontSize: 20.7 }}>🤚</div>
           </div>
           <div>
             <Label required>SpO₂ Postductal</Label>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>Pie Derecho</div>
+            <div style={{ fontSize: 12.6, color: '#64748b', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>Pie Derecho</div>
             <NumInput value={spo2Post} onChange={setSpo2Post} placeholder="–" min={50} max={100} />
-            <div style={{ textAlign: 'center', marginTop: 6, fontSize: 18 }}>🦶</div>
+            <div style={{ textAlign: 'center', marginTop: 6, fontSize: 20.7 }}>🦶</div>
           </div>
         </div>
         {diff !== null && (
           <div style={{ marginTop: 14, padding: '12px 16px', background: diff > 3 ? '#fee2e2' : '#eef2f7', borderRadius: 12, border: `1px solid ${diff > 3 ? '#fca5a5' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: diff > 3 ? '#7f1d1d' : '#475569', fontFamily: 'Outfit, sans-serif' }}>Diferencial Pre–Post</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 22, color: diff > 3 ? '#dc2626' : '#0f4a73' }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: diff > 3 ? '#7f1d1d' : '#475569', fontFamily: 'Outfit, sans-serif' }}>Diferencial Pre–Post</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 25.3, color: diff > 3 ? '#dc2626' : '#0f4a73' }}>
               {diff}%
             </span>
           </div>
@@ -392,19 +407,19 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
           <div style={{ padding: '20px', background: cfg.bg, borderRadius: 16, border: `2px solid ${cfg.border}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 52, height: 52, borderRadius: 14, background: cfg.solid, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: `0 4px 12px ${cfg.solid}44` }}>
-                <span style={{ fontSize: 24, color: '#fff', fontWeight: 700 }}>{cfg.icon}</span>
+                <span style={{ fontSize: 27.6, color: '#fff', fontWeight: 700 }}>{cfg.icon}</span>
               </div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: cfg.text, fontFamily: 'Outfit, sans-serif', letterSpacing: '0.02em' }}>{cfg.label}</div>
-                <div style={{ fontSize: 13, color: cfg.text, opacity: 0.8, fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{cfg.sub}</div>
+                <div style={{ fontSize: 20.7, fontWeight: 800, color: cfg.text, fontFamily: 'Outfit, sans-serif', letterSpacing: '0.02em' }}>{cfg.label}</div>
+                <div style={{ fontSize: 15, color: cfg.text, opacity: 0.8, fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{cfg.sub}</div>
               </div>
             </div>
             {result === 'repetir' && (
               <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#713f12', fontFamily: 'Outfit, sans-serif' }}>Intento N°:</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#713f12', fontFamily: 'Outfit, sans-serif' }}>Intento N°:</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[1, 2, 3].map(n => (
-                    <button key={n} onClick={() => setIntentos(n)} style={{ width: 40, height: 40, borderRadius: 10, border: `2px solid ${n <= intentos ? '#ca8a04' : '#fde047'}`, background: n <= intentos ? '#ca8a04' : '#fef9c3', color: n <= intentos ? '#fff' : '#713f12', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>{n}</button>
+                    <button key={n} onClick={() => setIntentos(n)} style={{ width: 40, height: 40, borderRadius: 10, border: `2px solid ${n <= intentos ? '#ca8a04' : '#fde047'}`, background: n <= intentos ? '#ca8a04' : '#fef9c3', color: n <= intentos ? '#fff' : '#713f12', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 18.4, cursor: 'pointer' }}>{n}</button>
                   ))}
                 </div>
               </div>
@@ -415,17 +430,17 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
 
       {result === 'positivo' && (
         <div style={{ padding: '14px 16px', background: '#fee2e2', borderRadius: 14, border: '1px solid #fca5a5' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#7f1d1d', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>⚠ Caso grave — siga estos pasos:</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#7f1d1d', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>⚠ Caso grave — siga estos pasos:</div>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {getInstrucciones('positivo').map((inst, i) => (
-              <li key={i} style={{ fontSize: 12, color: '#7f1d1d', fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
+              <li key={i} style={{ fontSize: 13.8, color: '#7f1d1d', fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
             ))}
           </ul>
         </div>
       )}
 
       {!result && (
-        <div style={{ padding: '12px 16px', background: '#f8fafd', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, color: '#64748b', fontFamily: 'Outfit, sans-serif', textAlign: 'center' }}>
+        <div style={{ padding: '12px 16px', background: '#f8fafd', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 15, color: '#64748b', fontFamily: 'Outfit, sans-serif', textAlign: 'center' }}>
           Ingrese ambas lecturas SpO₂ para obtener el resultado clasificado.
         </div>
       )}
@@ -438,7 +453,7 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
       {submitted && (
         <div style={{ padding: '16px', background: '#d1fae5', borderRadius: 14, border: '1px solid #6ee7b7', display: 'flex', alignItems: 'center', gap: 12 }}>
           <IconCheck size={24} color="#059669" />
-          <span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 600, color: '#065f46', fontSize: 15 }}>
+          <span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 600, color: '#065f46', fontSize: 17.3 }}>
             {networkStatus === 'offline' ? 'Guardado localmente. Se sincronizará cuando haya conexión.' : 'Registro guardado y sincronizado.'}
           </span>
         </div>
@@ -476,11 +491,11 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
+        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
           Datos del Paciente
         </div>
         {!paciente ? (
-          <div style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Busca un paciente por DNI arriba para completar sus datos.</div>
+          <div style={{ fontSize: 13.8, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Busca un paciente por DNI arriba para completar sus datos.</div>
         ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {[
@@ -492,14 +507,14 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
             { key: 'hora', label: 'Hora Cribado', value: horaStr },
           ].map(({ key, label, value }) => (
             <div key={label} style={{ padding: '10px 12px', background: '#f8fafd', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2, fontFamily: 'Outfit, sans-serif' }}>{label}</div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2, fontFamily: 'Outfit, sans-serif' }}>{label}</div>
               {key === 'hora' || key === 'altitud' ? (
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{value}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{value}</div>
               ) : (
                 <input
                   value={String(value)}
                   onChange={e => setPaciente({ ...paciente, [key]: e.target.value } as Paciente)}
-                  style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', outline: 'none', padding: 0 }}
+                  style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 15, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', outline: 'none', padding: 0 }}
                 />
               )}
             </div>
@@ -509,7 +524,7 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
       </SectionCard>
 
       <SectionCard>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
+        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
           Síntomas Observados
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -519,8 +534,8 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
                 {sintomas[key] && <IconCheck size={14} color="#fff" />}
               </div>
               <input type="checkbox" style={{ display: 'none' }} checked={sintomas[key]} onChange={e => setSintomas(s => ({ ...s, [key]: e.target.checked }))} />
-              <span style={{ fontSize: 14 }}>{icon}</span>
-              <span style={{ fontSize: 14, fontWeight: 500, color: sintomas[key] ? '#7f1d1d' : '#334155', fontFamily: 'Outfit, sans-serif' }}>{label}</span>
+              <span style={{ fontSize: 16.1 }}>{icon}</span>
+              <span style={{ fontSize: 16.1, fontWeight: 500, color: sintomas[key] ? '#7f1d1d' : '#334155', fontFamily: 'Outfit, sans-serif' }}>{label}</span>
             </label>
           ))}
         </div>
@@ -529,9 +544,9 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
       <div style={{ padding: '18px', background: '#0f4a73', borderRadius: 16, border: '1px solid #155d8f', color: '#fff' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <div style={{ width: 8, height: 8, borderRadius: 4, background: '#34d399' }} />
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Outfit, sans-serif', color: '#7bb8e8' }}>PAQUETE CARDIO</span>
+          <span style={{ fontSize: 13.8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Outfit, sans-serif', color: '#7bb8e8' }}>PAQUETE CARDIO</span>
           <div style={{ flex: 1 }} />
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#64748b' }}>#{Date.now().toString().slice(-6)}</span>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12.6, color: '#64748b' }}>#{Date.now().toString().slice(-6)}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
           {[
@@ -541,12 +556,12 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
             { label: 'Resultado', value: tamizajeActual ? tamizajeActual.resultado.toUpperCase() : 'Sin medir', alert: (tamizajeActual?.resultado ?? 'negativo') !== 'negativo' },
           ].map(({ label, value, alert }) => (
             <div key={label} style={{ padding: '8px 12px', background: alert ? 'rgba(220,38,38,0.15)' : 'rgba(255,255,255,0.08)', borderRadius: 8, border: `1px solid ${alert ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.12)'}` }}>
-              <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginBottom: 2 }}>{label}</div>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 16, color: alert ? '#fca5a5' : '#e2e8f0' }}>{value}</div>
+              <div style={{ fontSize: 11.5, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginBottom: 2 }}>{label}</div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 18.4, color: alert ? '#fca5a5' : '#e2e8f0' }}>{value}</div>
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: '#7bb8e8', fontFamily: 'Outfit, sans-serif' }}>
+        <div style={{ fontSize: 13.8, color: '#7bb8e8', fontFamily: 'Outfit, sans-serif' }}>
           Síntomas: {Object.entries(sintomas).filter(([, v]) => v).map(([k]) => k).join(', ') || 'Ninguno registrado'}
         </div>
       </div>
@@ -569,8 +584,8 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
         <div style={{ padding: '18px', background: '#d1fae5', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, border: '1px solid #6ee7b7' }}>
           <IconCheck size={24} color="#059669" />
           <div>
-            <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, color: '#065f46', fontSize: 15 }}>Paquete enviado exitosamente</div>
-            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12, color: '#065f46', opacity: 0.7, marginTop: 2 }}>El especialista ha recibido la notificación.</div>
+            <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, color: '#065f46', fontSize: 17.3 }}>Paquete enviado exitosamente</div>
+            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13.8, color: '#065f46', opacity: 0.7, marginTop: 2 }}>El especialista ha recibido la notificación.</div>
           </div>
         </div>
       )}
@@ -578,8 +593,8 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
         <div style={{ padding: '18px', background: '#fff7ed', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, border: '1px solid #fed7aa' }}>
           <IconAlert />
           <div>
-            <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, color: '#9a3412', fontSize: 15 }}>En cola — Sin conexión</div>
-            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12, color: '#9a3412', opacity: 0.8, marginTop: 2 }}>Se enviará automáticamente cuando haya internet disponible.</div>
+            <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, color: '#9a3412', fontSize: 17.3 }}>En cola — Sin conexión</div>
+            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13.8, color: '#9a3412', opacity: 0.8, marginTop: 2 }}>Se enviará automáticamente cuando haya internet disponible.</div>
           </div>
         </div>
       )}
@@ -588,7 +603,7 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
 }
 
 function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
-  const { paciente, tamizajeActual } = usePatient()
+  const { paciente, tamizajeActual, medico } = usePatient()
   const diff = tamizajeActual ? Math.abs(tamizajeActual.spo2_pre - tamizajeActual.spo2_post) : null
   const [editableText, setEditableText] = useState('')
 
@@ -599,7 +614,7 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     }
     setEditableText(
       `Se deriva a ${paciente?.nombre || 'recién nacido'} (DNI ${paciente?.dni ?? '—'}) con resultado ${tamizajeActual.resultado.toUpperCase()} en oximetría de pulso. ` +
-      `SpO₂ preductal: ${tamizajeActual.spo2_pre}%, postductal: ${tamizajeActual.spo2_post}%. Diferencial: ${diff}%. Altitud: ${tamizajeActual.altitud.toLocaleString('es-PE')} m.s.n.m. ` +
+`SpO2 preductal: ${tamizajeActual.spo2_pre}%, postductal: ${tamizajeActual.spo2_post}%. Diferencial: ${diff}%. Altitud: ${tamizajeActual.altitud.toLocaleString('es-PE')} m.s.n.m. ` +
       (tamizajeActual.resultado === 'positivo' ? 'Se solicita evaluación cardiológica urgente.' : 'Se solicita evaluación e interconsulta.')
     )
   }, [tamizajeActual, paciente])
@@ -618,17 +633,99 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   }
   const handlePDF = () => {
     const doc = new jsPDF()
-    doc.setFontSize(14)
-    doc.text('Documento de Derivación — CardioScreen', 14, 18)
+    const azul: [number, number, number] = [15, 74, 115]
+    const grisTexto: [number, number, number] = [30, 41, 59]
+    const grisLabel: [number, number, number] = [148, 163, 184]
+    const grisLinea: [number, number, number] = [226, 232, 240]
+    const mx = 20
+    const w = 210
+    let y = 0
+
+    doc.setFillColor(...azul)
+    doc.rect(0, 0, w, 22, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text('Hoja de Referencia Clínica', mx, 12)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text('CardioScreen — Tamizaje Neonatal Cardiaco', mx, 18)
+    const caso = tamizajeActual?.id ? tamizajeActual.id.slice(0, 8).toUpperCase() : 'S/N'
+    doc.text(`Caso N° ${caso}  ·  ${new Date().toLocaleString('es-PE')}`, w - mx, 18, { align: 'right' })
+
+    y = 34
+    const seccion = (titulo: string) => {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...azul)
+      doc.text(titulo.toUpperCase(), mx, y)
+      y += 3
+      doc.setDrawColor(...grisLinea)
+      doc.line(mx, y, w - mx, y)
+      y += 8
+    }
+    const campo = (label: string, valor: string) => {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(...grisLabel)
+      doc.text(label.toUpperCase(), mx, y)
+      y += 5
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...grisTexto)
+      doc.text(valor || '—', mx, y)
+      y += 9
+    }
+
+    seccion('Establecimientos')
+    campo('Origen', paciente?.establecimiento || medico?.establecimiento || '—')
+    campo('Referencia', 'Establecimiento con capacidad resolutiva (ver Red de Derivación)')
+
+    seccion('Identificación del Paciente')
+    campo('Nombre', paciente?.nombre || 'Recién nacido')
+    campo('DNI', paciente?.dni || '—')
+    campo('Edad gestacional', paciente?.edad_gestacional || '—')
+
+    seccion('Resultado del Tamizaje')
+    if (tamizajeActual) { 
+      const mitad = mx + (w - 2 * mx) / 2
+      const yInicio = y
+      campo('SpO2 Preductal (mano derecha)', `${tamizajeActual.spo2_pre}%`)
+      const yFinCol1 = y
+     y = yInicio
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...grisLabel)
+      doc.text('SPO2 POSTDUCTAL (PIE)', mitad, y)
+      y += 5
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...grisTexto)
+      doc.text(`${tamizajeActual.spo2_post}%`, mitad, y)
+      y = Math.max(yFinCol1, y + 9)
+      campo('Diferencial', `${Math.abs(tamizajeActual.spo2_pre - tamizajeActual.spo2_post)}%`)
+      campo('Altitud del establecimiento', `${tamizajeActual.altitud.toLocaleString('es-PE')} m.s.n.m.`)
+      campo('Clasificación', tamizajeActual.resultado.toUpperCase())
+    } else {
+      campo('Clasificación', 'Sin medición registrada')
+    }
+
+    seccion('Motivo de Referencia')
+    doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    doc.text(`Paciente: ${paciente?.nombre || '—'}   DNI: ${paciente?.dni || '—'}`, 14, 28)
-    doc.text(`Fecha: ${new Date().toLocaleString('es-PE')}`, 14, 34)
-    doc.setFontSize(11)
-    const lines = doc.splitTextToSize(editableText, 180)
-    doc.text(lines, 14, 46)
+    doc.setTextColor(...grisTexto)
+    const lineas = doc.splitTextToSize(editableText, w - 2 * mx)
+    doc.text(lineas, mx, y)
+    y += lineas.length * 5.5 + 14
+
+    doc.setDrawColor(...grisLinea)
+    doc.line(mx, y, w - mx, y)
+    y += 6
+    doc.setFontSize(7.5)
+    doc.setTextColor(...grisLabel)
+    doc.text('Documento generado por CardioScreen · Es un apoyo a la decisión clínica, no reemplaza la evaluación del establecimiento receptor.', mx, y, { maxWidth: w - 2 * mx })
+
     doc.autoPrint()
     window.open(doc.output('bloburl'), '_blank')
   }
+
+
 
   const facilities = [
     { name: 'Hospital Regional Huancavelica', dist: '12 km', time: '25 min', status: 'Disponible', urgencia: 'alta', phone: '+51 67 452 890' },
@@ -645,29 +742,29 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Outfit, sans-serif' }}>
+        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Outfit, sans-serif' }}>
           Documento de Derivación
         </div>
-        <div style={{ padding: '4px 0 8px', fontSize: 11, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Edite el texto de ser necesario:</div>
+        <div style={{ padding: '4px 0 8px', fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Edite el texto de ser necesario:</div>
         <textarea
           value={editableText}
           onChange={e => setEditableText(e.target.value)}
           rows={5}
-          style={{ width: '100%', padding: '12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 13, color: '#334155', lineHeight: 1.6, resize: 'vertical', outline: 'none' }}
+          style={{ width: '100%', padding: '12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 15, color: '#334155', lineHeight: 1.6, resize: 'vertical', outline: 'none' }}
           onFocus={e => { e.currentTarget.style.borderColor = '#1a6fa8' }}
           onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0' }}
         />
         <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={handleCopiar} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          <button onClick={handleCopiar} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
             {copiado ? '✓ Copiado' : '📋 Copiar'}
           </button>
-          <button onClick={handlePDF} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          <button onClick={handlePDF} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
             📄 PDF / Imprimir
           </button>
-          <button onClick={handleSMS} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          <button onClick={handleSMS} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
             💬 SMS
           </button>
-          <button onClick={handleWhatsApp} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #86efac', background: '#dcfce7', color: '#166534', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          <button onClick={handleWhatsApp} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #86efac', background: '#dcfce7', color: '#166534', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
             🟢 WhatsApp
           </button>
         </div>
@@ -675,52 +772,52 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
 
       {tamizajeActual?.resultado === 'positivo' && (
         <div style={{ padding: '14px 16px', background: '#fee2e2', borderRadius: 14, border: '1px solid #fca5a5' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#7f1d1d', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>⚠ Caso grave — instrucciones</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#7f1d1d', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>⚠ Caso grave — instrucciones</div>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {getInstrucciones('positivo').map((inst, i) => (
-              <li key={i} style={{ fontSize: 12, color: '#7f1d1d', fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
+              <li key={i} style={{ fontSize: 13.8, color: '#7f1d1d', fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
             ))}
           </ul>
         </div>
       )}
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Establecimientos Cercanos</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Establecimientos Cercanos</div>
       {facilities.map((f, i) => (
         <div key={i} style={{ padding: '14px', background: '#fff', borderRadius: 14, border: `2px solid ${f.urgencia === 'alta' ? '#6ee7b7' : '#e2e8f0'}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{f.name}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 3, fontFamily: 'Outfit, sans-serif' }}>
+              <div style={{ fontSize: 16.1, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{f.name}</div>
+              <div style={{ fontSize: 13.8, color: '#64748b', marginTop: 3, fontFamily: 'Outfit, sans-serif' }}>
                 📍 {f.dist} · 🕐 {f.time}
               </div>
             </div>
             <div style={{ padding: '4px 10px', borderRadius: 20, background: f.urgencia === 'alta' ? '#d1fae5' : f.urgencia === 'media' ? '#fef9c3' : '#f1f5f9', border: `1px solid ${f.urgencia === 'alta' ? '#6ee7b7' : f.urgencia === 'media' ? '#fde047' : '#e2e8f0'}` }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: f.urgencia === 'alta' ? '#065f46' : f.urgencia === 'media' ? '#713f12' : '#64748b', fontFamily: 'Outfit, sans-serif' }}>{f.status}</span>
+              <span style={{ fontSize: 12.6, fontWeight: 700, color: f.urgencia === 'alta' ? '#065f46' : f.urgencia === 'media' ? '#713f12' : '#64748b', fontFamily: 'Outfit, sans-serif' }}>{f.status}</span>
             </div>
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-            <a href={`tel:${f.phone}`} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: '#0f4a73', color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13 }}>
+            <a href={`tel:${f.phone}`} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: '#0f4a73', color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15 }}>
               <IconPhone /> Llamar
             </a>
-            <button style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '2px solid #0f4a73', background: '#fff', color: '#0f4a73', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            <button style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '2px solid #0f4a73', background: '#fff', color: '#0f4a73', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
               <IconMessage /> Mensaje
             </button>
           </div>
         </div>
       ))}
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '4px 2px 0' }}>Especialistas de Guardia</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '4px 2px 0' }}>Especialistas de Guardia</div>
       {specialists.map((s, i) => (
         <div key={i} style={{ padding: '14px', background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <div style={{ width: 44, height: 44, borderRadius: 22, background: s.status === 'disponible' ? '#d1fae5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `2px solid ${s.status === 'disponible' ? '#6ee7b7' : '#e2e8f0'}` }}>
-            <span style={{ fontSize: 20 }}>👨‍⚕️</span>
+            <span style={{ fontSize: 23 }}>👨‍⚕️</span>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-            <div style={{ fontSize: 12, color: '#64748b', fontFamily: 'Outfit, sans-serif' }}>{s.specialty}</div>
+            <div style={{ fontSize: 16.1, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+            <div style={{ fontSize: 13.8, color: '#64748b', fontFamily: 'Outfit, sans-serif' }}>{s.specialty}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
               <div style={{ width: 6, height: 6, borderRadius: 3, background: s.status === 'disponible' ? '#059669' : '#94a3b8' }} />
-              <span style={{ fontSize: 11, color: s.status === 'disponible' ? '#059669' : '#94a3b8', fontFamily: 'Outfit, sans-serif', fontWeight: 600 }}>
+              <span style={{ fontSize: 12.6, color: s.status === 'disponible' ? '#059669' : '#94a3b8', fontFamily: 'Outfit, sans-serif', fontWeight: 600 }}>
                 {s.status === 'disponible' ? 'Disponible' : 'No disponible'}
               </span>
             </div>
@@ -737,11 +834,11 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
       ))}
 
       <div style={{ padding: '14px 16px', background: '#fef9c3', borderRadius: 14, border: '1px solid #fde047' }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#713f12', marginBottom: 6, fontFamily: 'Outfit, sans-serif' }}>⚠ Teleconsulta de Respaldo</div>
-        <div style={{ fontSize: 13, color: '#713f12', marginBottom: 10, fontFamily: 'Outfit, sans-serif', opacity: 0.85 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#713f12', marginBottom: 6, fontFamily: 'Outfit, sans-serif' }}>⚠ Teleconsulta de Respaldo</div>
+        <div style={{ fontSize: 15, color: '#713f12', marginBottom: 10, fontFamily: 'Outfit, sans-serif', opacity: 0.85 }}>
           Si no hay especialista disponible o no es posible la transferencia inmediata, use la línea de teleconsulta nacional:
         </div>
-        <a href="tel:+51800001234" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px', background: '#ca8a04', borderRadius: 12, color: '#fff', textDecoration: 'none', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 15 }}>
+        <a href="tel:+51800001234" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px', background: '#ca8a04', borderRadius: 12, color: '#fff', textDecoration: 'none', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 17.3 }}>
           <IconPhone /> 0800-001-234 (GRATUITO)
         </a>
       </div>
@@ -757,7 +854,7 @@ const mockHistory: Screening[] = [
 ]
 
 function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: NetworkStatus; setNetworkStatus: (s: NetworkStatus) => void }) {
-  const { paciente, tamizajeActual } = usePatient()
+  const { paciente, tamizajeActual, medico } = usePatient()
   const [urgencia, setUrgencia] = useState<'alta' | 'media' | 'baja'>('alta')
   const [alertMsg, setAlertMsg] = useState('')
   const [autoSync, setAutoSync] = useState(true)
@@ -795,8 +892,73 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
   const handleSendAlert = () => {
     if (!alertMsg.trim()) return
     setAlertSent(true)
+    generarReciboPDF()
     setTimeout(() => setAlertSent(false), 3000)
     setAlertMsg('')
+  }
+
+  const generarReciboPDF = () => {
+    const doc = new jsPDF({ format: 'a5' })
+    const azul: [number, number, number] = [15, 74, 115]
+    const grisTexto: [number, number, number] = [30, 41, 59]
+    const grisLabel: [number, number, number] = [148, 163, 184]
+    const mx = 12
+    const w = 148
+    let y = 0
+
+    doc.setFillColor(...azul)
+    doc.rect(0, 0, w, 22, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text('CardioScreen', mx, 12)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text('Comprobante de Notificación de Alerta', mx, 18)
+
+    y = 33
+    const campo = (label: string, valor: string) => {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7.5)
+      doc.setTextColor(...grisLabel)
+      doc.text(label.toUpperCase(), mx, y)
+      y += 4.5
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10.5)
+      doc.setTextColor(...grisTexto)
+      doc.text(valor || '—', mx, y)
+      y += 8
+    }
+
+    campo('Fecha', new Date().toLocaleString('es-PE'))
+    campo('Paciente', paciente?.nombre || 'Recién nacido')
+    campo('DNI', paciente?.dni || '—')
+    if (tamizajeActual) {
+      campo('SpO2 Preductal / Postductal', `${tamizajeActual.spo2_pre}% / ${tamizajeActual.spo2_post}%`)
+      campo('Clasificación', tamizajeActual.resultado.toUpperCase())
+    }
+    campo('Urgencia', urgenciaConfig[urgencia].label)
+    campo('Profesional', medico?.nombre || '—')
+
+    doc.setDrawColor(226, 232, 240)
+    doc.line(mx, y, w - mx, y)
+    y += 7
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...grisLabel)
+    doc.text('MENSAJE', mx, y)
+    y += 5
+    doc.setFontSize(10)
+    doc.setTextColor(...grisTexto)
+    const lineas = doc.splitTextToSize(alertMsg, w - 2 * mx)
+    doc.text(lineas, mx, y)
+    y += lineas.length * 5
+
+    doc.setFontSize(7)
+    doc.setTextColor(...grisLabel)
+    doc.text('Documento generado automáticamente por CardioScreen — válido como constancia de envío.', mx, 195, { maxWidth: w - 2 * mx })
+
+    window.open(doc.output('bloburl'), '_blank')
   }
 
   const urgenciaConfig = {
@@ -817,14 +979,14 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
+        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
           Compositor de Alerta
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {(['alta', 'media', 'baja'] as const).map(u => {
             const cfg = urgenciaConfig[u]
             return (
-              <button key={u} onClick={() => setUrgencia(u)} style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: `2px solid ${urgencia === u ? cfg.color : '#e2e8f0'}`, background: urgencia === u ? cfg.bg : '#f8fafd', color: urgencia === u ? cfg.color : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 11, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', transition: 'all 0.15s' }}>
+              <button key={u} onClick={() => setUrgencia(u)} style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: `2px solid ${urgencia === u ? cfg.color : '#e2e8f0'}`, background: urgencia === u ? cfg.bg : '#f8fafd', color: urgencia === u ? cfg.color : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 12.6, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', transition: 'all 0.15s' }}>
                 {cfg.label}
               </button>
             )
@@ -835,31 +997,31 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
           onChange={e => setAlertMsg(e.target.value)}
           placeholder="Escriba el mensaje de alerta..."
           rows={3}
-          style={{ width: '100%', padding: '12px', borderRadius: 10, border: `2px solid ${alertSent ? '#6ee7b7' : '#e2e8f0'}`, background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 14, color: '#334155', lineHeight: 1.5, resize: 'none', outline: 'none', transition: 'border-color 0.15s' }}
+          style={{ width: '100%', padding: '12px', borderRadius: 10, border: `2px solid ${alertSent ? '#6ee7b7' : '#e2e8f0'}`, background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 16.1, color: '#334155', lineHeight: 1.5, resize: 'none', outline: 'none', transition: 'border-color 0.15s' }}
           onFocus={e => { e.currentTarget.style.borderColor = urgenciaConfig[urgencia].color }}
           onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0' }}
         />
         {!alertMsg.trim() && !alertSent && (
-          <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Campo requerido para enviar alerta.</div>
+          <div style={{ marginTop: 6, fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Campo requerido para enviar alerta.</div>
         )}
         <BigButton onClick={handleSendAlert} disabled={!alertMsg.trim()} color={urgenciaConfig[urgencia].color} style={{ marginTop: 10 }}>
           <IconAlert /> Enviar Alerta {urgenciaConfig[urgencia].label}
         </BigButton>
         {alertSent && (
-          <div style={{ marginTop: 8, padding: '10px 14px', background: '#d1fae5', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#065f46', fontFamily: 'Outfit, sans-serif' }}>
+          <div style={{ marginTop: 8, padding: '10px 14px', background: '#d1fae5', borderRadius: 10, fontSize: 15, fontWeight: 600, color: '#065f46', fontFamily: 'Outfit, sans-serif' }}>
             ✓ Alerta enviada exitosamente.
           </div>
         )}
       </SectionCard>
 
       <SectionCard>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
+        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
           Estado de Sincronización
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '12px 14px', background: '#f8fafd', borderRadius: 12, border: '1px solid #e2e8f0' }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', fontFamily: 'Outfit, sans-serif' }}>Sincronización automática</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>Sincroniza cuando hay conexión disponible</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#334155', fontFamily: 'Outfit, sans-serif' }}>Sincronización automática</div>
+            <div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>Sincroniza cuando hay conexión disponible</div>
           </div>
           <div
             onClick={() => setAutoSync(a => !a)}
@@ -876,8 +1038,8 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
             { label: 'Total registros', value: String(historialConActual.length), color: '#1a6fa8' },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ padding: '10px 12px', background: '#f8fafd', borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{label}</div>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 25.3, fontWeight: 700, color }}>{value}</div>
+              <div style={{ fontSize: 12.6, color: '#64748b', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -886,16 +1048,16 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
         </BigButton>
 
         <div style={{ marginTop: 10, padding: '10px 14px', background: '#f1f5f9', borderRadius: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>Simular red:</span>
+          <span style={{ fontSize: 12.6, color: '#64748b', fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>Simular red:</span>
           {(['online', 'offline'] as const).map(s => (
-            <button key={s} onClick={() => { if (!syncing) setNetworkStatus(s) }} style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: `1.5px solid ${networkStatus === s ? (s === 'online' ? '#059669' : '#dc2626') : '#e2e8f0'}`, background: networkStatus === s ? (s === 'online' ? '#d1fae5' : '#fee2e2') : '#fff', color: networkStatus === s ? (s === 'online' ? '#059669' : '#dc2626') : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}>
+            <button key={s} onClick={() => { if (!syncing) setNetworkStatus(s) }} style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: `1.5px solid ${networkStatus === s ? (s === 'online' ? '#059669' : '#dc2626') : '#e2e8f0'}`, background: networkStatus === s ? (s === 'online' ? '#d1fae5' : '#fee2e2') : '#fff', color: networkStatus === s ? (s === 'online' ? '#059669' : '#dc2626') : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 12.6, cursor: 'pointer' }}>
               {s === 'online' ? '📶 En línea' : '📵 Sin conexión'}
             </button>
           ))}
         </div>
       </SectionCard>
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Historial de Tamizajes</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Historial de Tamizajes</div>
       {historialConActual.map(s => {
         const syncCfg = syncStatusConfig[s.syncStatus]
         const rColor = resultColor[s.resultado!]
@@ -903,23 +1065,23 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
           <div key={s.id} style={{ padding: '14px', background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{s.paciente}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>{s.id} · {s.fecha}</div><div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{s.altitud.toLocaleString('es-PE')} m.s.n.m. · {s.fecha}</div>              </div>
+                <div style={{ fontSize: 16.1, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{s.paciente}</div>
+                <div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>{s.id} · {s.fecha}</div><div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{s.altitud.toLocaleString('es-PE')} m.s.n.m. · {s.fecha}</div>              </div>
               <div style={{ padding: '4px 10px', borderRadius: 20, background: syncCfg.bg, border: `1px solid ${s.syncStatus === 'synced' ? '#6ee7b7' : s.syncStatus === 'pending' ? '#fde047' : '#fca5a5'}`, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: syncCfg.color, fontFamily: 'Outfit, sans-serif' }}>
+                <span style={{ fontSize: 12.6, fontWeight: 700, color: syncCfg.color, fontFamily: 'Outfit, sans-serif' }}>
                   {syncCfg.icon} {syncCfg.label}
                 </span>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8 }}>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, fontWeight: 600, color: '#0f4a73' }}>{s.spo2Pre}% Pre</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 16.1, fontWeight: 600, color: '#0f4a73' }}>{s.spo2Pre}% Pre</span>
                 <span style={{ color: '#cbd5e1' }}>·</span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, fontWeight: 600, color: '#0f4a73' }}>{s.spo2Post}% Post</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 16.1, fontWeight: 600, color: '#0f4a73' }}>{s.spo2Post}% Post</span>
               </div>
               <div style={{ flex: 1 }} />
               <div style={{ padding: '3px 10px', borderRadius: 20, background: `${rColor}18`, border: `1px solid ${rColor}44` }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: rColor, fontFamily: 'Outfit, sans-serif' }}>{resultLabel[s.resultado!]}</span>
+                <span style={{ fontSize: 12.6, fontWeight: 800, color: rColor, fontFamily: 'Outfit, sans-serif' }}>{resultLabel[s.resultado!]}</span>
               </div>
             </div>
           </div>
@@ -1013,11 +1175,11 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="splash-title" style={{ textAlign: 'center', marginBottom: 6 }}>
-        <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 30, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>CardioScreen</div>
+        <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 34.5, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>CardioScreen</div>
       </div>
-      <div className="splash-sub" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13, color: '#7bb8e8', marginBottom: 40, letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1.5 }}>
+      <div className="splash-sub" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, color: '#7bb8e8', marginBottom: 40, letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1.5 }}>
         Cribado de Oximetría Neonatal<br />
-        <span style={{ fontSize: 11, color: '#4a7fa8' }}>Perú · Zonas de Alta Altitud</span>
+        <span style={{ fontSize: 12.6, color: '#4a7fa8' }}>Perú · Zonas de Alta Altitud</span>
       </div>
 
       <div className="splash-stats" style={{ width: 220, marginBottom: 28 }}>
@@ -1039,22 +1201,22 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 
       <div className="splash-stats" style={{ display: 'flex', gap: 20, marginBottom: 48 }}>
         <div style={{ textAlign: 'center', padding: '14px 20px', background: 'rgba(26,111,168,0.15)', borderRadius: 16, border: '1px solid rgba(26,111,168,0.3)', minWidth: 90 }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 700, color: '#34d399' }}>
-            {spo2}<span style={{ fontSize: 14, fontWeight: 400 }}>%</span>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 32.2, fontWeight: 700, color: '#34d399' }}>
+            {spo2}<span style={{ fontSize: 16.1, fontWeight: 400 }}>%</span>
           </div>
-          <div style={{ fontSize: 10, color: '#7bb8e8', fontFamily: 'Outfit, sans-serif', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>SpO₂</div>
+          <div style={{ fontSize: 11.5, color: '#7bb8e8', fontFamily: 'Outfit, sans-serif', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>SpO₂</div>
         </div>
         <div style={{ textAlign: 'center', padding: '14px 20px', background: 'rgba(29,149,161,0.15)', borderRadius: 16, border: '1px solid rgba(29,149,161,0.3)', minWidth: 90 }}>
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 28, fontWeight: 700, color: '#60a5fa' }}>
-            {bpm}<span style={{ fontSize: 14, fontWeight: 400 }}> bpm</span>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 32.2, fontWeight: 700, color: '#60a5fa' }}>
+            {bpm}<span style={{ fontSize: 16.1, fontWeight: 400 }}> bpm</span>
           </div>
-          <div style={{ fontSize: 10, color: '#7bb8e8', fontFamily: 'Outfit, sans-serif', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>FC</div>
+          <div style={{ fontSize: 11.5, color: '#7bb8e8', fontFamily: 'Outfit, sans-serif', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>FC</div>
         </div>
       </div>
 
       <div className="splash-foot" style={{ display: 'flex', alignItems: 'center', gap: 7, position: 'absolute', bottom: 36 }}>
         <div className="dot-blink" style={{ width: 6, height: 6, borderRadius: 3, background: '#34d399' }} />
-        <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 11, color: '#4a7fa8', letterSpacing: '0.06em' }}>
+        <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12.6, color: '#4a7fa8', letterSpacing: '0.06em' }}>
           Sistema activo · Modo sin conexión listo
         </span>
       </div>
@@ -1068,6 +1230,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true)
   const [medico, setMedico] = useState<Medico | null>(() => getSession())
   const [welcome, setWelcome] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
 
   const handleLogin = (m: Medico) => {
     setMedico(m)
@@ -1092,12 +1255,19 @@ export default function App() {
           <PatientProvider medico={medico}>
             {welcome && (
               <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#0f4a73', color: '#fff', animation: 'fadeIn 0.2s ease' }}>
-                <span style={{ fontSize: 32 }}>💙</span>
-                <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 700 }}>¡Bienvenido, {medico.nombre}!</span>
-                <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12, color: '#a9d0ec' }}>{medico.establecimiento}</span>
+                <span style={{ fontSize: 36.8 }}>💙</span>
+                <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20.7, fontWeight: 700 }}>¡Bienvenido, {medico.nombre}!</span>
+                <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13.8, color: '#a9d0ec' }}>{medico.establecimiento}</span>
               </div>
             )}
-            <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onLogout={() => { clearSession(); setMedico(null) }} />
+            <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onProfileClick={() => setShowProfile(true)} />
+            {showProfile && (
+              <ProfileModal
+                medico={medico}
+                onClose={() => setShowProfile(false)}
+                onLogout={() => { clearSession(); setMedico(null); setShowProfile(false) }}
+              />
+            )}
             {screen !== 'tutorial' && screen !== 'alertas' && (
               <div style={{ padding: '12px 16px 0' }}>
                 <PatientPicker />
