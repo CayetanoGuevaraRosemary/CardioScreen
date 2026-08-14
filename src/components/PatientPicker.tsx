@@ -57,7 +57,7 @@ export default function PatientPicker() {
         <input
           value={dni}
           onChange={e => setDni(e.target.value)}
-          placeholder="DNI del recién nacido / madre"
+          placeholder="CNV / DNI del recién nacido"
           style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '2px solid #fed7aa', fontFamily: 'Outfit, sans-serif', fontSize: 13, outline: 'none' }}
         />
         <button

@@ -3,6 +3,7 @@ import TutorialScreen from './components/TutorialScreen'
 import Login from './components/Login'
 import PatientPicker from './components/PatientPicker'
 import ProfileModal from './components/ProfileModal'
+import WifiModal from './components/WifiModal'
 import { getSession, clearSession, type Medico } from './lib/auth'
 import { obtenerAltitud } from './lib/geolocation'
 import { guardarTamizaje, obtenerHistorial, type Tamizaje } from './lib/tamizajes'
@@ -138,7 +139,7 @@ const IconSend = () => (
   </svg>
 )
 
-function TopBar({ networkStatus, screen, medico, onProfileClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onProfileClick?: () => void }) {
+function TopBar({ networkStatus, screen, medico, onProfileClick, onWifiClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onProfileClick?: () => void; onWifiClick?: () => void }) {
   const titles: Record<Screen, string> = {
     tutorial: 'Tutorial de Tamizaje',
     medicion: 'Medición SpO₂',
@@ -155,15 +156,17 @@ function TopBar({ networkStatus, screen, medico, onProfileClick }: { networkStat
           </svg>
         </div>
         <div>
-          <div style={{ color: 'white', fontWeight: 700, fontSize: 16.1, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>CardioScreen</div>
+          <div style={{ color: 'white', fontWeight: 700, fontSize: 16.1, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>Sunqu</div>
           <div style={{ color: '#7bb8e8', fontSize: 12.6, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>{titles[screen]}</div>
         </div>
       </div>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px',
-        background: networkStatus === 'offline' ? '#7f2d0a' : networkStatus === 'syncing' ? '#1e3a5f' : '#0d3b24',
-        borderRadius: 20, border: `1px solid ${networkStatus === 'offline' ? '#c2440a' : networkStatus === 'syncing' ? '#1a6fa8' : '#059669'}`,
-      }}>
+      <div
+        onClick={onWifiClick}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', cursor: 'pointer',
+          background: networkStatus === 'offline' ? '#7f2d0a' : networkStatus === 'syncing' ? '#1e3a5f' : '#0d3b24',
+          borderRadius: 20, border: `1px solid ${networkStatus === 'offline' ? '#c2440a' : networkStatus === 'syncing' ? '#1a6fa8' : '#059669'}`,
+        }}>
         {networkStatus === 'syncing' ? <IconSync /> : <IconWifi off={networkStatus === 'offline'} />}
         <span style={{
           fontSize: 12.6, fontWeight: 600, letterSpacing: '0.02em', fontFamily: 'Outfit, sans-serif',
@@ -187,11 +190,11 @@ function TopBar({ networkStatus, screen, medico, onProfileClick }: { networkStat
 
 function BottomNav({ screen, setScreen }: { screen: Screen; setScreen: (s: Screen) => void }) {
   const items: { key: Screen; label: string; Icon: React.ComponentType<{ active?: boolean }> }[] = [
-    { key: 'tutorial', label: 'Tutorial', Icon: IconTutorial },
-    { key: 'medicion', label: 'Medición', Icon: IconMedicion },
-    { key: 'paquete', label: 'Paquete', Icon: IconPaquete },
-    { key: 'derivacion', label: 'Red', Icon: IconDerivacion },
-    { key: 'alertas', label: 'Alertas', Icon: IconAlertas },
+    { key: 'tutorial', label: ' Tutorial', Icon: IconTutorial },
+    { key: 'medicion', label: '1. Medición', Icon: IconMedicion },
+    { key: 'paquete', label: '2. Paquete', Icon: IconPaquete },
+    { key: 'derivacion', label: '3. Derivación', Icon: IconDerivacion },
+    { key: 'alertas', label: '4. Alertas', Icon: IconAlertas },
   ]
   return (
     <div style={{ background: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', flexShrink: 0, boxShadow: '0 -2px 12px rgba(0,0,0,0.07)' }}>
@@ -475,6 +478,7 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     { key: 'soplo', label: 'Soplo cardíaco audible', icon: '🩺' },
     { key: 'pulsos_debiles', label: 'Pulsos débiles o ausentes', icon: '💓' },
     { key: 'dificultad_resp', label: 'Dificultad respiratoria', icon: '⚠' },
+    { key: 'otro', label: 'Otro: Indique su Síntoma', icon: '' },
   ]
 
   const handleSend = () => {
@@ -628,104 +632,13 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   const handleSMS = () => {
     window.location.href = `sms:?&body=${encodeURIComponent(editableText)}`
   }
+
   const handleWhatsApp = () => {
     window.open(`https://wa.me/?text=${encodeURIComponent(editableText)}`, '_blank')
   }
+
   const handlePDF = () => {
-    const doc = new jsPDF()
-    const azul: [number, number, number] = [15, 74, 115]
-    const grisTexto: [number, number, number] = [30, 41, 59]
-    const grisLabel: [number, number, number] = [148, 163, 184]
-    const grisLinea: [number, number, number] = [226, 232, 240]
-    const mx = 20
-    const w = 210
-    let y = 0
-
-    doc.setFillColor(...azul)
-    doc.rect(0, 0, w, 22, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
-    doc.text('Hoja de Referencia Clínica', mx, 12)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.text('CardioScreen — Tamizaje Neonatal Cardiaco', mx, 18)
-    const caso = tamizajeActual?.id ? tamizajeActual.id.slice(0, 8).toUpperCase() : 'S/N'
-    doc.text(`Caso N° ${caso}  ·  ${new Date().toLocaleString('es-PE')}`, w - mx, 18, { align: 'right' })
-
-    y = 34
-    const seccion = (titulo: string) => {
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      doc.setTextColor(...azul)
-      doc.text(titulo.toUpperCase(), mx, y)
-      y += 3
-      doc.setDrawColor(...grisLinea)
-      doc.line(mx, y, w - mx, y)
-      y += 8
-    }
-    const campo = (label: string, valor: string) => {
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(...grisLabel)
-      doc.text(label.toUpperCase(), mx, y)
-      y += 5
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
-      doc.setTextColor(...grisTexto)
-      doc.text(valor || '—', mx, y)
-      y += 9
-    }
-
-    seccion('Establecimientos')
-    campo('Origen', paciente?.establecimiento || medico?.establecimiento || '—')
-    campo('Referencia', 'Establecimiento con capacidad resolutiva (ver Red de Derivación)')
-
-    seccion('Identificación del Paciente')
-    campo('Nombre', paciente?.nombre || 'Recién nacido')
-    campo('DNI', paciente?.dni || '—')
-    campo('Edad gestacional', paciente?.edad_gestacional || '—')
-
-    seccion('Resultado del Tamizaje')
-    if (tamizajeActual) { 
-      const mitad = mx + (w - 2 * mx) / 2
-      const yInicio = y
-      campo('SpO2 Preductal (mano derecha)', `${tamizajeActual.spo2_pre}%`)
-      const yFinCol1 = y
-     y = yInicio
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...grisLabel)
-      doc.text('SPO2 POSTDUCTAL (PIE)', mitad, y)
-      y += 5
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...grisTexto)
-      doc.text(`${tamizajeActual.spo2_post}%`, mitad, y)
-      y = Math.max(yFinCol1, y + 9)
-      campo('Diferencial', `${Math.abs(tamizajeActual.spo2_pre - tamizajeActual.spo2_post)}%`)
-      campo('Altitud del establecimiento', `${tamizajeActual.altitud.toLocaleString('es-PE')} m.s.n.m.`)
-      campo('Clasificación', tamizajeActual.resultado.toUpperCase())
-    } else {
-      campo('Clasificación', 'Sin medición registrada')
-    }
-
-    seccion('Motivo de Referencia')
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    doc.setTextColor(...grisTexto)
-    const lineas = doc.splitTextToSize(editableText, w - 2 * mx)
-    doc.text(lineas, mx, y)
-    y += lineas.length * 5.5 + 14
-
-    doc.setDrawColor(...grisLinea)
-    doc.line(mx, y, w - mx, y)
-    y += 6
-    doc.setFontSize(7.5)
-    doc.setTextColor(...grisLabel)
-    doc.text('Documento generado por CardioScreen · Es un apoyo a la decisión clínica, no reemplaza la evaluación del establecimiento receptor.', mx, y, { maxWidth: w - 2 * mx })
-
-    doc.autoPrint()
-    window.open(doc.output('bloburl'), '_blank')
   }
-
-
 
   const facilities = [
     { name: 'Hospital Regional Huancavelica', dist: '12 km', time: '25 min', status: 'Disponible', urgencia: 'alta', phone: '+51 67 452 890' },
@@ -743,7 +656,7 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard>
         <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Outfit, sans-serif' }}>
-          Documento de Derivación
+          Alerta de Caso
         </div>
         <div style={{ padding: '4px 0 8px', fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Edite el texto de ser necesario:</div>
         <textarea
@@ -758,14 +671,22 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
           <button onClick={handleCopiar} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
             {copiado ? '✓ Copiado' : '📋 Copiar'}
           </button>
-          <button onClick={handlePDF} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-            📄 PDF / Imprimir
+          <button onClick={handleWhatsApp} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #86efac', background: '#dcfce7', color: '#166534', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+            🟢 WhatsApp
           </button>
           <button onClick={handleSMS} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
             💬 SMS
           </button>
-          <button onClick={handleWhatsApp} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #86efac', background: '#dcfce7', color: '#166534', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-            🟢 WhatsApp
+        </div>
+      </SectionCard>
+
+      <SectionCard>
+        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Outfit, sans-serif' }}>
+          Documento de Derivación
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={handlePDF} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+            📄 PDF / Imprimir
           </button>
         </div>
       </SectionCard>
@@ -806,32 +727,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
         </div>
       ))}
 
-      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '4px 2px 0' }}>Especialistas de Guardia</div>
-      {specialists.map((s, i) => (
-        <div key={i} style={{ padding: '14px', background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 22, background: s.status === 'disponible' ? '#d1fae5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `2px solid ${s.status === 'disponible' ? '#6ee7b7' : '#e2e8f0'}` }}>
-            <span style={{ fontSize: 23 }}>👨‍⚕️</span>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16.1, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-            <div style={{ fontSize: 13.8, color: '#64748b', fontFamily: 'Outfit, sans-serif' }}>{s.specialty}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
-              <div style={{ width: 6, height: 6, borderRadius: 3, background: s.status === 'disponible' ? '#059669' : '#94a3b8' }} />
-              <span style={{ fontSize: 12.6, color: s.status === 'disponible' ? '#059669' : '#94a3b8', fontFamily: 'Outfit, sans-serif', fontWeight: 600 }}>
-                {s.status === 'disponible' ? 'Disponible' : 'No disponible'}
-              </span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-            <a href={`tel:${s.phone}`} style={{ width: 40, height: 40, borderRadius: 10, background: s.status === 'disponible' ? '#0f4a73' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: s.status === 'disponible' ? '#fff' : '#94a3b8' }}>
-              <IconPhone />
-            </a>
-            <button style={{ width: 40, height: 40, borderRadius: 10, border: `2px solid ${s.status === 'disponible' ? '#0f4a73' : '#e2e8f0'}`, background: '#fff', color: s.status === 'disponible' ? '#0f4a73' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: s.status === 'disponible' ? 'pointer' : 'not-allowed' }}>
-              <IconMessage />
-            </button>
-          </div>
-        </div>
-      ))}
 
       <div style={{ padding: '14px 16px', background: '#fef9c3', borderRadius: 14, border: '1px solid #fde047' }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: '#713f12', marginBottom: 6, fontFamily: 'Outfit, sans-serif' }}>⚠ Teleconsulta de Respaldo</div>
@@ -892,73 +787,8 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
   const handleSendAlert = () => {
     if (!alertMsg.trim()) return
     setAlertSent(true)
-    generarReciboPDF()
     setTimeout(() => setAlertSent(false), 3000)
     setAlertMsg('')
-  }
-
-  const generarReciboPDF = () => {
-    const doc = new jsPDF({ format: 'a5' })
-    const azul: [number, number, number] = [15, 74, 115]
-    const grisTexto: [number, number, number] = [30, 41, 59]
-    const grisLabel: [number, number, number] = [148, 163, 184]
-    const mx = 12
-    const w = 148
-    let y = 0
-
-    doc.setFillColor(...azul)
-    doc.rect(0, 0, w, 22, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
-    doc.text('CardioScreen', mx, 12)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.text('Comprobante de Notificación de Alerta', mx, 18)
-
-    y = 33
-    const campo = (label: string, valor: string) => {
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7.5)
-      doc.setTextColor(...grisLabel)
-      doc.text(label.toUpperCase(), mx, y)
-      y += 4.5
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10.5)
-      doc.setTextColor(...grisTexto)
-      doc.text(valor || '—', mx, y)
-      y += 8
-    }
-
-    campo('Fecha', new Date().toLocaleString('es-PE'))
-    campo('Paciente', paciente?.nombre || 'Recién nacido')
-    campo('DNI', paciente?.dni || '—')
-    if (tamizajeActual) {
-      campo('SpO2 Preductal / Postductal', `${tamizajeActual.spo2_pre}% / ${tamizajeActual.spo2_post}%`)
-      campo('Clasificación', tamizajeActual.resultado.toUpperCase())
-    }
-    campo('Urgencia', urgenciaConfig[urgencia].label)
-    campo('Profesional', medico?.nombre || '—')
-
-    doc.setDrawColor(226, 232, 240)
-    doc.line(mx, y, w - mx, y)
-    y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...grisLabel)
-    doc.text('MENSAJE', mx, y)
-    y += 5
-    doc.setFontSize(10)
-    doc.setTextColor(...grisTexto)
-    const lineas = doc.splitTextToSize(alertMsg, w - 2 * mx)
-    doc.text(lineas, mx, y)
-    y += lineas.length * 5
-
-    doc.setFontSize(7)
-    doc.setTextColor(...grisLabel)
-    doc.text('Documento generado automáticamente por CardioScreen — válido como constancia de envío.', mx, 195, { maxWidth: w - 2 * mx })
-
-    window.open(doc.output('bloburl'), '_blank')
   }
 
   const urgenciaConfig = {
@@ -980,7 +810,7 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard>
         <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
-          Compositor de Alerta
+          Alerta a Comunidad
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {(['alta', 'media', 'baja'] as const).map(u => {
@@ -1014,48 +844,7 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
         )}
       </SectionCard>
 
-      <SectionCard>
-        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
-          Estado de Sincronización
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '12px 14px', background: '#f8fafd', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#334155', fontFamily: 'Outfit, sans-serif' }}>Sincronización automática</div>
-            <div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>Sincroniza cuando hay conexión disponible</div>
-          </div>
-          <div
-            onClick={() => setAutoSync(a => !a)}
-            style={{ width: 52, height: 28, borderRadius: 14, background: autoSync ? '#1a6fa8' : '#cbd5e1', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
-          >
-            <div style={{ position: 'absolute', top: 3, left: autoSync ? 27 : 3, width: 22, height: 22, borderRadius: 11, background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.25)', transition: 'left 0.2s' }} />
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-          {[
-            { label: 'Pendientes', value: String(historialConActual.filter(h => h.syncStatus === 'pending').length), color: '#ca8a04' },
-            { label: 'Fallidos', value: String(historialConActual.filter(h => h.syncStatus === 'failed').length), color: '#dc2626' },
-            { label: 'Sincronizados', value: String(historialConActual.filter(h => h.syncStatus === 'synced').length), color: '#059669' },
-            { label: 'Total registros', value: String(historialConActual.length), color: '#1a6fa8' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ padding: '10px 12px', background: '#f8fafd', borderRadius: 10, border: '1px solid #e2e8f0', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 25.3, fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: 12.6, color: '#64748b', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{label}</div>
-            </div>
-          ))}
-        </div>
-        <BigButton onClick={handleSync} disabled={networkStatus === 'offline' || syncing} color="#1a6fa8">
-          <IconSync /> {syncing ? 'Sincronizando...' : networkStatus === 'offline' ? 'Sin conexión' : 'Sincronizar Ahora'}
-        </BigButton>
-
-        <div style={{ marginTop: 10, padding: '10px 14px', background: '#f1f5f9', borderRadius: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 12.6, color: '#64748b', fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>Simular red:</span>
-          {(['online', 'offline'] as const).map(s => (
-            <button key={s} onClick={() => { if (!syncing) setNetworkStatus(s) }} style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: `1.5px solid ${networkStatus === s ? (s === 'online' ? '#059669' : '#dc2626') : '#e2e8f0'}`, background: networkStatus === s ? (s === 'online' ? '#d1fae5' : '#fee2e2') : '#fff', color: networkStatus === s ? (s === 'online' ? '#059669' : '#dc2626') : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 12.6, cursor: 'pointer' }}>
-              {s === 'online' ? '📶 En línea' : '📵 Sin conexión'}
-            </button>
-          ))}
-        </div>
-      </SectionCard>
+      
 
       <div style={{ fontSize: 15, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Historial de Tamizajes</div>
       {historialConActual.map(s => {
@@ -1175,7 +964,7 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="splash-title" style={{ textAlign: 'center', marginBottom: 6 }}>
-        <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 34.5, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>CardioScreen</div>
+        <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 34.5, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>Sunqu</div>
       </div>
       <div className="splash-sub" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, color: '#7bb8e8', marginBottom: 40, letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1.5 }}>
         Cribado de Oximetría Neonatal<br />
@@ -1231,6 +1020,7 @@ export default function App() {
   const [medico, setMedico] = useState<Medico | null>(() => getSession())
   const [welcome, setWelcome] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [showWifi, setShowWifi] = useState(false)
 
   const handleLogin = (m: Medico) => {
     setMedico(m)
@@ -1260,7 +1050,14 @@ export default function App() {
                 <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13.8, color: '#a9d0ec' }}>{medico.establecimiento}</span>
               </div>
             )}
-            <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onProfileClick={() => setShowProfile(true)} />
+            <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onProfileClick={() => setShowProfile(true)} onWifiClick={() => setShowWifi(true)} />
+            {showWifi && (
+              <WifiModal
+                networkStatus={networkStatus}
+                setNetworkStatus={setNetworkStatus}
+                onClose={() => setShowWifi(false)}
+              />
+            )}
             {showProfile && (
               <ProfileModal
                 medico={medico}
