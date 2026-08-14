@@ -1,4 +1,4 @@
-# CardioScreen
+# Sunqu
 
 Aplicación móvil-first que digitaliza el tamizaje neonatal de cardiopatías congénitas críticas, adaptando los umbrales de saturación de oxígeno (SpO₂) a la altitud del establecimiento de salud, en vez de usar los parámetros estándar de nivel del mar que generan diagnósticos erróneos en la sierra peruana.
 
@@ -42,7 +42,7 @@ Equipo **LifeHackers**
 ## Estructura del Proyecto
 
 ```
-CardioScreen/
+Sunqu/
 ├── src/
 │   ├── App.tsx
 │   ├── components/       (Login, TutorialScreen, PatientPicker)
