@@ -27,6 +27,26 @@ interface Screening {
   syncStatus: 'synced' | 'pending' | 'failed'
 }
 
+function calcularEdadDetallada(fechaNacimiento?: string | null): { anios: number; meses: number; dias: number } | null {
+  if (!fechaNacimiento) return null
+  const nac = new Date(fechaNacimiento)
+  if (isNaN(nac.getTime())) return null
+  const hoy = new Date()
+  let anios = hoy.getFullYear() - nac.getFullYear()
+  let meses = hoy.getMonth() - nac.getMonth()
+  let dias = hoy.getDate() - nac.getDate()
+  if (dias < 0) { meses--; dias += new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate() }
+  if (meses < 0) { anios--; meses += 12 }
+  return { anios, meses, dias }
+}
+
+function calcularEdadDias(fechaNacimiento?: string | null): number | null {
+  if (!fechaNacimiento) return null
+  const nacimiento = new Date(fechaNacimiento).getTime()
+  if (isNaN(nacimiento)) return null
+  return Math.max(0, Math.floor((Date.now() - nacimiento) / 86400000))
+}
+
 function getAltitudeTier(alt: number): { label: string; tier: 1 | 2 | 3 } {
   if (alt < 2500) return { label: '0–2,499 m', tier: 1 }
   if (alt < 3600) return { label: '2,500–3,599 m', tier: 2 }
@@ -138,8 +158,23 @@ const IconSend = () => (
     <polygon points="22 2 15 22 11 13 2 9 22 2" />
   </svg>
 )
+const IconGear = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+)
 
-function TopBar({ networkStatus, screen, medico, onProfileClick, onWifiClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onProfileClick?: () => void; onWifiClick?: () => void }) {
+const SINTOMAS_LABELS: Record<string, { label: string; icon: string }> = {
+  cianosis: { label: 'Cianosis central', icon: '🚩' },
+  taquipnea: { label: 'Taquipnea (FR > 60/min)', icon: '🚩' },
+  soplo: { label: 'Soplo cardíaco audible', icon: '🚩' },
+  pulsos_debiles: { label: 'Pulsos débiles o ausentes', icon: '🚩' },
+  dificultad_resp: { label: 'Dificultad respiratoria', icon: '🚩' },
+  otro: { label: 'Otro síntoma indicado', icon: '🚩' },
+}
+
+function TopBar({ networkStatus, screen, medico, onProfileClick, onWifiClick, onSettingsClick, onFaqClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onProfileClick?: () => void; onWifiClick?: () => void; onSettingsClick?: () => void; onFaqClick?: () => void }) {
   const titles: Record<Screen, string> = {
     tutorial: 'Tutorial de Tamizaje',
     medicion: 'Medición SpO₂',
@@ -151,39 +186,53 @@ function TopBar({ networkStatus, screen, medico, onProfileClick, onWifiClick }: 
     <div style={{ background: '#0f4a73', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 32, height: 32, background: '#1a6fa8', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
+          <img src="/favicon.svg" alt="Sunqu" style={{ width: 20, height: 20 }} />
         </div>
         <div>
           <div style={{ color: 'white', fontWeight: 700, fontSize: 16.1, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>Sunqu</div>
           <div style={{ color: '#7bb8e8', fontSize: 12.6, lineHeight: 1.1, fontFamily: 'Outfit, sans-serif' }}>{titles[screen]}</div>
         </div>
       </div>
-      <div
-        onClick={onWifiClick}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', cursor: 'pointer',
-          background: networkStatus === 'offline' ? '#7f2d0a' : networkStatus === 'syncing' ? '#1e3a5f' : '#0d3b24',
-          borderRadius: 20, border: `1px solid ${networkStatus === 'offline' ? '#c2440a' : networkStatus === 'syncing' ? '#1a6fa8' : '#059669'}`,
-        }}>
-        {networkStatus === 'syncing' ? <IconSync /> : <IconWifi off={networkStatus === 'offline'} />}
-        <span style={{
-          fontSize: 12.6, fontWeight: 600, letterSpacing: '0.02em', fontFamily: 'Outfit, sans-serif',
-          color: networkStatus === 'offline' ? '#fb923c' : networkStatus === 'syncing' ? '#60a5fa' : '#34d399',
-        }}>
-          {networkStatus === 'offline' ? 'Sin Conexión' : networkStatus === 'syncing' ? 'Sincronizando' : 'En Línea'}
-        </span>
-      </div>
-      {medico && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <button
-          onClick={onProfileClick}
-          title="Mi perfil"
-          style={{ marginLeft: 8, width: 30, height: 30, flexShrink: 0, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 13.8, fontWeight: 700, fontFamily: 'Outfit, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={onSettingsClick}
+          title="Idioma / Configuración"
+          style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         >
-          {medico.nombre.trim().charAt(0).toUpperCase()}
+          <IconGear />
         </button>
-      )}
+        <button
+          onClick={onFaqClick}
+          title="Preguntas Frecuentes"
+          style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 13.8 }}
+        >
+          ?
+        </button>
+        <div
+          onClick={onWifiClick}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', cursor: 'pointer',
+            background: networkStatus === 'offline' ? '#7f2d0a' : networkStatus === 'syncing' ? '#1e3a5f' : '#0d3b24',
+            borderRadius: 20, border: `1px solid ${networkStatus === 'offline' ? '#c2440a' : networkStatus === 'syncing' ? '#1a6fa8' : '#059669'}`,
+          }}>
+          {networkStatus === 'syncing' ? <IconSync /> : <IconWifi off={networkStatus === 'offline'} />}
+          <span style={{
+            fontSize: 12.6, fontWeight: 600, letterSpacing: '0.02em', fontFamily: 'Outfit, sans-serif',
+            color: networkStatus === 'offline' ? '#fb923c' : networkStatus === 'syncing' ? '#60a5fa' : '#34d399',
+          }}>
+            {networkStatus === 'offline' ? 'Sin Conexión' : networkStatus === 'syncing' ? 'Sincronizando' : 'En Línea'}
+          </span>
+        </div>
+        {medico && (
+          <button
+            onClick={onProfileClick}
+            title="Mi perfil"
+            style={{ width: 30, height: 30, flexShrink: 0, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 13.8, fontWeight: 700, fontFamily: 'Outfit, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {medico.nombre.trim().charAt(0).toUpperCase()}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -301,7 +350,7 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     const r = await obtenerAltitud()
     setBuscandoUbicacion(false)
     if (r.altitud !== null) setAltitud(String(r.altitud))
-    else setGeoError(r.error) 
+    else setGeoError(r.error)
   }
 
   const alt = parseInt(altitud) || 0
@@ -330,8 +379,9 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     const t: Tamizaje = {
       paciente_dni: paciente.dni, medico_codigo: medico?.codigo ?? null,
       spo2_pre: pre, spo2_post: post, altitud: alt, resultado: result, sintomas: [],
+      creado_en: new Date().toISOString(),
     }
-    setTamizajeActual(t) 
+    setTamizajeActual(t)
     await guardarTamizaje(t)
   }
 
@@ -344,7 +394,7 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
             <NumInput value={altitud} onChange={setAltitud} placeholder="m.s.n.m." min={0} max={5000} />
           </div>
           <div style={{ flexShrink: 0, padding: '10px 14px', background: '#eef2f7', borderRadius: 12, border: '1px solid #e2e8f0', minHeight: 56, display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, fontWeight: 500, color: '#64748b' }}>m.s.n.m.</span>
+            <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 17.2, fontWeight: 500, color: '#64748b' }}>m.s.n.m.</span>
           </div>
         </div>
         <button
@@ -360,7 +410,7 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
           </div>
         )}
         <div style={{ marginTop: 10, padding: '12px 14px', background: tierBanner.bg, borderRadius: 12, border: `1px solid ${tierBanner.border}` }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: tierBanner.text, fontFamily: 'Outfit, sans-serif', marginBottom: 8 }}>{tierBanner.label}</div>
+          <div style={{ fontSize: 17.2, fontWeight: 700, color: tierBanner.text, fontFamily: 'Outfit, sans-serif', marginBottom: 8 }}>{tierBanner.label}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
@@ -396,7 +446,7 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
         </div>
         {diff !== null && (
           <div style={{ marginTop: 14, padding: '12px 16px', background: diff > 3 ? '#fee2e2' : '#eef2f7', borderRadius: 12, border: `1px solid ${diff > 3 ? '#fca5a5' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: diff > 3 ? '#7f1d1d' : '#475569', fontFamily: 'Outfit, sans-serif' }}>Diferencial Pre–Post</span>
+            <span style={{ fontSize: 17.2, fontWeight: 600, color: diff > 3 ? '#7f1d1d' : '#475569', fontFamily: 'Outfit, sans-serif' }}>Diferencial Pre–Post</span>
             <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 25.3, color: diff > 3 ? '#dc2626' : '#0f4a73' }}>
               {diff}%
             </span>
@@ -414,12 +464,12 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
               </div>
               <div>
                 <div style={{ fontSize: 20.7, fontWeight: 800, color: cfg.text, fontFamily: 'Outfit, sans-serif', letterSpacing: '0.02em' }}>{cfg.label}</div>
-                <div style={{ fontSize: 15, color: cfg.text, opacity: 0.8, fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{cfg.sub}</div>
+                <div style={{ fontSize: 17.2, color: cfg.text, opacity: 0.8, fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{cfg.sub}</div>
               </div>
             </div>
             {result === 'repetir' && (
               <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: '#713f12', fontFamily: 'Outfit, sans-serif' }}>Intento N°:</span>
+                <span style={{ fontSize: 17.2, fontWeight: 600, color: '#713f12', fontFamily: 'Outfit, sans-serif' }}>Intento N°:</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[1, 2, 3].map(n => (
                     <button key={n} onClick={() => setIntentos(n)} style={{ width: 40, height: 40, borderRadius: 10, border: `2px solid ${n <= intentos ? '#ca8a04' : '#fde047'}`, background: n <= intentos ? '#ca8a04' : '#fef9c3', color: n <= intentos ? '#fff' : '#713f12', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 18.4, cursor: 'pointer' }}>{n}</button>
@@ -431,19 +481,23 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
         )
       })()}
 
-      {result === 'positivo' && (
-        <div style={{ padding: '14px 16px', background: '#fee2e2', borderRadius: 14, border: '1px solid #fca5a5' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#7f1d1d', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>⚠ Caso grave — siga estos pasos:</div>
-          <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {getInstrucciones('positivo').map((inst, i) => (
-              <li key={i} style={{ fontSize: 13.8, color: '#7f1d1d', fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {result && (() => {
+        const cfg = resultConfig[result]
+        const titulos = { positivo: '⚠ Caso grave — siga estos pasos:', repetir: '⚠ Repetir medición — siga estos pasos:', negativo: '✓ Indicaciones' }
+        return (
+          <div style={{ padding: '14px 16px', background: cfg.bg, borderRadius: 14, border: `1px solid ${cfg.border}` }}>
+            <div style={{ fontSize: 17.2, fontWeight: 700, color: cfg.text, marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>{titulos[result]}</div>
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {getInstrucciones(result).map((inst, i) => (
+                <li key={i} style={{ fontSize: 13.8, color: cfg.text, fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
 
       {!result && (
-        <div style={{ padding: '12px 16px', background: '#f8fafd', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 15, color: '#64748b', fontFamily: 'Outfit, sans-serif', textAlign: 'center' }}>
+        <div style={{ padding: '12px 16px', background: '#f8fafd', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 17.2, color: '#64748b', fontFamily: 'Outfit, sans-serif', textAlign: 'center' }}>
           Ingrese ambas lecturas SpO₂ para obtener el resultado clasificado.
         </div>
       )}
@@ -466,20 +520,43 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
 }
 
 function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
-  const { paciente, setPaciente, tamizajeActual } = usePatient()
-  const [sintomas, setSintomas] = useState<Record<string, boolean>>({
-    cianosis: false, taquipnea: false, soplo: false, pulsos_debiles: false, dificultad_resp: false,
+  const { paciente, setPaciente, tamizajeActual, setTamizajeActual } = usePatient()
+  const [otroTexto, setOtroTexto] = useState(() => {
+    const s = tamizajeActual?.sintomas?.find(x => x.startsWith('otro:'))
+    return s ? s.replace('otro:', '') : ''
   })
+  const [sintomas, setSintomas] = useState<Record<string, boolean>>(() => {
+    const activos = tamizajeActual?.sintomas ?? []
+    return Object.fromEntries(Object.keys(SINTOMAS_LABELS).map(k => [
+      k, 
+      k === 'otro' ? activos.some(x => x === 'otro' || x.startsWith('otro:')) : activos.includes(k)
+    ]))
+  })
+
   const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'queued'>('idle')
 
-  const sitomasList = [
-    { key: 'cianosis', label: 'Cianosis central', icon: '🔵' },
-    { key: 'taquipnea', label: 'Taquipnea (FR > 60/min)', icon: '💨' },
-    { key: 'soplo', label: 'Soplo cardíaco audible', icon: '🩺' },
-    { key: 'pulsos_debiles', label: 'Pulsos débiles o ausentes', icon: '💓' },
-    { key: 'dificultad_resp', label: 'Dificultad respiratoria', icon: '⚠' },
-    { key: 'otro', label: 'Otro: Indique su Síntoma', icon: '' },
-  ]
+  const sitomasList = Object.entries(SINTOMAS_LABELS).map(([key, v]) => ({ key, ...v }))
+
+  const toggleSintoma = (key: string, checked: boolean) => {
+    const nuevos = { ...sintomas, [key]: checked }
+    setSintomas(nuevos)
+    if (tamizajeActual) {
+      const actualizados = Object.keys(nuevos).filter(k => nuevos[k] && k !== 'otro')
+      if (nuevos['otro']) {
+        actualizados.push(otroTexto ? `otro:${otroTexto}` : 'otro')
+      }
+      setTamizajeActual({ ...tamizajeActual, sintomas: actualizados })
+    }
+  }
+
+  const handleOtroTexto = (txt: string) => {
+    setOtroTexto(txt)
+    if (sintomas['otro'] && tamizajeActual) {
+      const actualizados = Object.keys(sintomas).filter(k => sintomas[k] && k !== 'otro')
+      actualizados.push(txt ? `otro:${txt}` : 'otro')
+      setTamizajeActual({ ...tamizajeActual, sintomas: actualizados })
+    }
+  }
 
   const handleSend = () => {
     setSendState('sending')
@@ -513,12 +590,12 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
             <div key={label} style={{ padding: '10px 12px', background: '#f8fafd', borderRadius: 10, border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2, fontFamily: 'Outfit, sans-serif' }}>{label}</div>
               {key === 'hora' || key === 'altitud' ? (
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{value}</div>
+                <div style={{ fontSize: 17.2, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{value}</div>
               ) : (
                 <input
                   value={String(value)}
                   onChange={e => setPaciente({ ...paciente, [key]: e.target.value } as Paciente)}
-                  style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 15, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', outline: 'none', padding: 0 }}
+                  style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 17.2, fontWeight: 600, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', outline: 'none', padding: 0 }}
                 />
               )}
             </div>
@@ -533,14 +610,27 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sitomasList.map(({ key, label, icon }) => (
-            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: sintomas[key] ? '#fee2e2' : '#f8fafd', borderRadius: 12, border: `2px solid ${sintomas[key] ? '#fca5a5' : '#e2e8f0'}`, cursor: 'pointer', transition: 'all 0.15s' }}>
-              <div style={{ width: 24, height: 24, borderRadius: 8, border: `2px solid ${sintomas[key] ? '#dc2626' : '#cbd5e1'}`, background: sintomas[key] ? '#dc2626' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {sintomas[key] && <IconCheck size={14} color="#fff" />}
-              </div>
-              <input type="checkbox" style={{ display: 'none' }} checked={sintomas[key]} onChange={e => setSintomas(s => ({ ...s, [key]: e.target.checked }))} />
-              <span style={{ fontSize: 16.1 }}>{icon}</span>
-              <span style={{ fontSize: 16.1, fontWeight: 500, color: sintomas[key] ? '#7f1d1d' : '#334155', fontFamily: 'Outfit, sans-serif' }}>{label}</span>
-            </label>
+            <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: sintomas[key] ? '#fee2e2' : '#f8fafd', borderRadius: 12, border: `2px solid ${sintomas[key] ? '#fca5a5' : '#e2e8f0'}`, cursor: 'pointer', transition: 'all 0.15s' }}>
+                <div style={{ width: 24, height: 24, borderRadius: 8, border: `2px solid ${sintomas[key] ? '#dc2626' : '#cbd5e1'}`, background: sintomas[key] ? '#dc2626' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {sintomas[key] && <IconCheck size={14} color="#fff" />}
+                </div>
+                <input type="checkbox" style={{ display: 'none' }} checked={sintomas[key]} onChange={e => toggleSintoma(key, e.target.checked)} />
+                <span style={{ fontSize: 16.1 }}>{sintomas[key] ? icon : '⬜'}</span>
+                <span style={{ fontSize: 16.1, fontWeight: 500, color: sintomas[key] ? '#7f1d1d' : '#334155', fontFamily: 'Outfit, sans-serif' }}>{label}</span>
+              </label>
+              
+              {/* Nuevo Input que aparece solo si "otro" está marcado */}
+              {key === 'otro' && sintomas['otro'] && (
+                <input
+                  type="text"
+                  placeholder="Especifique el síntoma..."
+                  value={otroTexto}
+                  onChange={e => handleOtroTexto(e.target.value)}
+                  style={{ marginLeft: 48, padding: '10px 12px', borderRadius: 10, border: '2px solid #fca5a5', background: '#fff', fontFamily: 'Outfit, sans-serif', fontSize: 15, outline: 'none' }}
+                />
+              )}
+            </div>
           ))}
         </div>
       </SectionCard>
@@ -566,7 +656,7 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
           ))}
         </div>
         <div style={{ fontSize: 13.8, color: '#7bb8e8', fontFamily: 'Outfit, sans-serif' }}>
-          Síntomas: {Object.entries(sintomas).filter(([, v]) => v).map(([k]) => k).join(', ') || 'Ninguno registrado'}
+          Síntomas: {Object.entries(sintomas).filter(([, v]) => v).map(([k]) => SINTOMAS_LABELS[k]?.icon + ' ' + SINTOMAS_LABELS[k]?.label).join(' · ') || 'Ninguno registrado'}
         </div>
       </div>
 
@@ -606,75 +696,269 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   )
 }
 
+interface DatosComplementarios {
+  asegurado: 'si' | 'no' | ''
+  establecimientoDestino: string
+  anamnesis: string
+  examenFisico: string
+  diagnostico: string
+  tratamiento: string
+  acompanante: string
+}
+
+const ESTABLECIMIENTOS_DESTINO = [
+  'Hospital Regional Huancavelica',
+  'HRDLM Huancayo',
+  'Hospital Arzobispo Loayza (Lima)',
+  'Instituto Nacional del Niño (San Borja)',
+]
+
+const CIE10_DEFAULT = 'Q24.9 - Malformación congénita del corazón, no especificada'
+
+const DATOS_COMPLEMENTARIOS_VACIOS: DatosComplementarios = {
+  asegurado: '', establecimientoDestino: '',
+  anamnesis: '', examenFisico: '', diagnostico: '', tratamiento: '', acompanante: '',
+}
+
 function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   const { paciente, tamizajeActual, medico } = usePatient()
   const diff = tamizajeActual ? Math.abs(tamizajeActual.spo2_pre - tamizajeActual.spo2_post) : null
-  const [editableText, setEditableText] = useState('')
-
+  const [datos, setDatos] = useState<DatosComplementarios>(DATOS_COMPLEMENTARIOS_VACIOS)
   useEffect(() => {
-    if (!tamizajeActual) {
-      setEditableText('Aún no hay una medición para este paciente. Ve a la pestaña Medición primero.')
-      return
-    }
-    setEditableText(
-      `Se deriva a ${paciente?.nombre || 'recién nacido'} (DNI ${paciente?.dni ?? '—'}) con resultado ${tamizajeActual.resultado.toUpperCase()} en oximetría de pulso. ` +
-`SpO2 preductal: ${tamizajeActual.spo2_pre}%, postductal: ${tamizajeActual.spo2_post}%. Diferencial: ${diff}%. Altitud: ${tamizajeActual.altitud.toLocaleString('es-PE')} m.s.n.m. ` +
-      (tamizajeActual.resultado === 'positivo' ? 'Se solicita evaluación cardiológica urgente.' : 'Se solicita evaluación e interconsulta.')
-    )
-  }, [tamizajeActual, paciente])
+    if (paciente) setDatos(d => ({
+      ...d,
+      anamnesis: d.anamnesis || paciente.historial || '',
+      diagnostico: d.diagnostico || CIE10_DEFAULT,
+    }))
+  }, [paciente])
+  const [intentoDescarga, setIntentoDescarga] = useState(false)
+
+  const listo = Boolean(paciente && tamizajeActual)
+
+  const sintomasActivos = (tamizajeActual?.sintomas ?? []).map(s => {
+    if (s.startsWith('otro:')) return `Otro síntoma: ${s.replace('otro:', '')}`
+    return SINTOMAS_LABELS[s]?.label || s
+  })
+
+  const edadDias = calcularEdadDias(paciente?.fecha_nacimiento)
+
+  const resumen = !listo
+    ? null
+    : `📋 RESUMEN DE ATENCIÓN: TAMIZAJE NEONATAL CARDIOLÓGICO\n\n` +
+      `👤 DATOS DEL PACIENTE\n` +
+      `Paciente: ${paciente!.nombre || 'Recién nacido'}\n` +
+      `DNI / CNV: ${paciente!.dni}\n` +
+      `Edad: ${edadDias !== null ? `${edadDias} días de nacido` : '—'}` +
+      (paciente!.edad_gestacional ? ` (EG: ${paciente!.edad_gestacional})` : '') + `\n\n` +
+      `🏥 DETALLES DEL TAMIZAJE\n` +
+      `Fecha de realización: ${tamizajeActual!.creado_en ? new Date(tamizajeActual!.creado_en).toLocaleString('es-PE') : '—'}\n` +
+      `Altitud del centro: ${tamizajeActual!.altitud.toLocaleString('es-PE')} msnm\n\n` +
+      `📊 RESULTADOS DE OXIMETRÍA\n` +
+      `✋ SpO2 Pre-ductal (Mano derecha): ${tamizajeActual!.spo2_pre}%\n` +
+      `🦶 SpO2 Post-ductal (Cualquier pie): ${tamizajeActual!.spo2_post}%\n` +
+      `🚨 Estado de Tamizaje: ${tamizajeActual!.resultado.toUpperCase()}\n\n` +
+      `🩺 INFORMACIÓN CLÍNICA\n` +
+      `Historial / Anamnesis: ${paciente!.historial || datos.anamnesis || '—'}\n` +
+      `Síntomas:\n` +
+      (sintomasActivos.length ? sintomasActivos.map(s => `🔸 ${s}`).join('\n') : '🔸 Sin síntomas de alarma registrados') + `\n\n` +
+      `📌 Conclusión Médica: ${tamizajeActual!.resultado === 'positivo' ? 'Requiere derivación cardiológica urgente. Paciente inestable.' : 'Se solicita evaluación e interconsulta.'}`
 
   const [copiado, setCopiado] = useState(false)
   const handleCopiar = async () => {
-    await navigator.clipboard.writeText(editableText)
+    if (!resumen) return
+    await navigator.clipboard.writeText(resumen)
     setCopiado(true)
     setTimeout(() => setCopiado(false), 1800)
   }
-  const handleSMS = () => {
-    window.location.href = `sms:?&body=${encodeURIComponent(editableText)}`
-  }
+  const handleSMS = () => { if (resumen) window.location.href = `sms:?&body=${encodeURIComponent(resumen)}` }
+  const handleWhatsApp = () => { if (resumen) window.open(`https://wa.me/?text=${encodeURIComponent(resumen)}`, '_blank') }
 
-  const handleWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(editableText)}`, '_blank')
+  // Campos obligatorios para poder generar la Hoja de Referencia (marcados con * en el formulario).
+  const camposFaltantes = (): string[] => {
+    const faltan: string[] = []
+    if (!paciente?.nombre) faltan.push('Nombre del paciente')
+    if (!paciente?.dni) faltan.push('DNI / CNV')
+    if (!paciente?.fecha_nacimiento) faltan.push('Fecha de nacimiento (registrar en ficha del paciente)')
+    if (!paciente?.establecimiento) faltan.push('Establecimiento de origen')
+    if (!datos.establecimientoDestino) faltan.push('Establecimiento de destino')
+    if (!tamizajeActual) faltan.push('Medición de SpO₂ (pestaña Medición)')
+    if (!datos.diagnostico) faltan.push('Diagnóstico')
+    return faltan
   }
 
   const handlePDF = () => {
+    const faltantes = camposFaltantes()
+    if (faltantes.length > 0) {
+      setIntentoDescarga(true)
+      return
+    }
+    setIntentoDescarga(false)
+
+    const doc = new jsPDF()
+    const negro: [number, number, number] = [20, 20, 20]
+    const gris: [number, number, number] = [90, 90, 90]
+    const mx = 10
+    const w = 210
+    const cw = w - 2 * mx // 190
+    doc.setDrawColor(0); doc.setLineWidth(0.25); doc.setTextColor(...negro)
+
+    // ---- Encabezado ----
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+    doc.text('Ministerio de Salud', mx, 14)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5)
+    doc.text('Sunqu — Tamizaje Neonatal Cardíaco', mx, 18)
+    doc.setLineWidth(0.4); doc.rect(mx + 45, 8, 95, 12)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15)
+    doc.text('HOJA DE REFERENCIA', mx + 45 + 47.5, 16, { align: 'center' })
+    doc.setLineWidth(0.25); doc.rect(w - mx - 45, 8, 45, 12)
+    doc.setFontSize(7); doc.text('NÚMERO', w - mx - 22.5, 12, { align: 'center' })
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+    const caso = tamizajeActual?.id ? tamizajeActual.id.slice(0, 8).toUpperCase() : 'S/N'
+    doc.text(caso, w - mx - 22.5, 18, { align: 'center' })
+
+    let y = 28
+    const edadDet = calcularEdadDetallada(paciente?.fecha_nacimiento)
+    const esUrgente = tamizajeActual?.resultado === 'positivo'
+
+    // helpers
+    const lbl = (t: string, x: number, yy: number) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(...gris); doc.text(t, x, yy) }
+    const val = (t: string, x: number, yy: number, size = 8.5) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(size); doc.setTextColor(...negro); doc.text(t || '—', x, yy) }
+    const boxField = (x: number, yy: number, ww: number, h: number, label: string, value: string) => {
+      doc.setLineWidth(0.25); doc.rect(x, yy, ww, h)
+      lbl(label, x + 1.5, yy + 3.2)
+      val(value, x + 1.5, yy + h - 2)
+    }
+    const parrafoBox = (x: number, yy: number, ww: number, h: number, label: string, texto: string) => {
+      doc.rect(x, yy, ww, h)
+      lbl(label, x + 1.5, yy + 3.2)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...negro)
+      const lineas = doc.splitTextToSize(texto || '—', ww - 3)
+      doc.text(lineas.slice(0, Math.floor((h - 4) / 4)), x + 1.5, yy + 8)
+    }
+    const circ = (x: number, yy: number, marked: boolean, texto: string) => {
+      doc.setLineWidth(0.25); doc.circle(x, yy, 1.6)
+      if (marked) { doc.setLineWidth(0.7); doc.circle(x, yy, 0.8, 'FD') }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...negro)
+      doc.text(texto, x + 3, yy + 1)
+    }
+    const seccion = (t: string) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...negro); doc.text(t, mx, y); y += 4 }
+
+    // ---- 1. DATOS GENERALES ----
+    seccion('1.- DATOS GENERALES')
+    const hoy = new Date()
+    boxField(mx, y, 42, 9, 'FECHA', hoy.toLocaleDateString('es-PE'))
+    boxField(mx + 44, y, 24, 9, 'HORA', hoy.toLocaleTimeString('es-PE').slice(0, 5))
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text('Asegurado:', mx + 70, y + 6)
+    circ(mx + 88, y + 5, datos.asegurado === 'si', 'SI')
+    circ(mx + 100, y + 5, datos.asegurado === 'no', 'NO')
+    boxField(mx + 112, y, 78, 9, 'FECHA DE NACIMIENTO', paciente?.fecha_nacimiento ? new Date(paciente.fecha_nacimiento).toLocaleDateString('es-PE') : '—')
+    y += 12
+    boxField(mx, y, cw, 8, 'ESTABLECIMIENTO DE ORIGEN', paciente?.establecimiento || medico?.establecimiento || '—')
+    y += 10
+    boxField(mx, y, cw, 8, 'ESTABLECIMIENTO DESTINO', datos.establecimientoDestino)
+    y += 13
+
+    // ---- 2. IDENTIFICACIÓN DEL USUARIO ----
+    seccion('2.- IDENTIFICACIÓN DEL USUARIO')
+    boxField(mx, y, cw, 8, 'NOMBRES Y APELLIDOS', paciente?.nombre || 'Recién nacido')
+    y += 10
+    boxField(mx, y, 40, 9, 'DNI / CNV', paciente?.dni || '—')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.text('Sexo:', mx + 44, y + 6)
+    circ(mx + 54, y + 5, false, 'M'); circ(mx + 64, y + 5, false, 'F')
+    boxField(mx + 72, y, 24, 9, 'EDAD (AÑOS)', edadDet ? `${edadDet.anios}` : '—')
+    boxField(mx + 98, y, 24, 9, 'MESES', edadDet ? `${edadDet.meses}` : '—')
+    boxField(mx + 124, y, 24, 9, 'DÍAS', edadDet ? `${edadDet.dias}` : '—')
+    boxField(mx + 150, y, 40, 9, 'EDAD GESTACIONAL', paciente?.edad_gestacional || '—')
+    y += 12
+    boxField(mx, y, cw, 8, 'DIRECCIÓN', `S/N - Jurisdicción ${paciente?.establecimiento || medico?.establecimiento || '—'}`)
+    y += 13
+
+    // ---- 3. RESUMEN DE HISTORIA CLÍNICA ----
+    seccion('3.- RESUMEN DE HISTORIA CLÍNICA')
+    parrafoBox(mx, y, cw, 16, 'ANAMNESIS', datos.anamnesis)
+    y += 18
+    parrafoBox(mx, y, cw, 16, 'EXAMEN FÍSICO (OPCIONAL)', datos.examenFisico)
+    y += 18
+    const examAux = tamizajeActual
+      ? `Oximetría de pulso: SpO2 preductal ${tamizajeActual.spo2_pre}%, postductal ${tamizajeActual.spo2_post}% (diferencial ${diff}%). Altitud: ${tamizajeActual.altitud.toLocaleString('es-PE')} m.s.n.m. Clasificación: ${tamizajeActual.resultado.toUpperCase()}. Síntomas: ${sintomasActivos.length ? sintomasActivos.join(', ') : 'ninguno registrado'}.`
+      : '—'
+    parrafoBox(mx, y, cw, 20, 'EXÁMENES AUXILIARES', examAux)
+    y += 22
+    doc.rect(mx, y, cw - 30, 18); doc.rect(mx + cw - 30, y, 30, 18)
+    lbl('DIAGNÓSTICO (CIE-10)', mx + 1.5, y + 3.2)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
+    doc.text(doc.splitTextToSize(`1. ${datos.diagnostico}`, cw - 33), mx + 1.5, y + 8)
+    lbl('D / P / R', mx + cw - 28, y + 3.2)
+    val('P', mx + cw - 15, y + 10, 9)
+    y += 20
+    boxField(mx, y, cw, 9, 'TRATAMIENTO INDICADO (OPCIONAL)', datos.tratamiento || 'Ninguno')
+    y += 13
+
+    // ---- 4. DATOS DE LA REFERENCIA ----
+    seccion('4.- DATOS DE LA REFERENCIA')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
+    circ(mx + 4, y + 3, esUrgente, 'Emergencia (referencia urgente)')
+    doc.text('Prioridad:', mx + 4, y + 10)
+    circ(mx + 22, y + 9, esUrgente, 'I')
+    circ(mx + 34, y + 9, !esUrgente, 'II')
+    y += 15
+    boxField(mx, y, cw / 2 - 2, 9, 'RESPONSABLE (ORIGEN)', medico ? medico.nombre : '—')
+    boxField(mx + cw / 2 + 2, y, cw / 2 - 2, 9, 'CMP / COLEGIATURA', medico ? medico.codigo : '—')
+    y += 11
+    boxField(mx, y, cw / 2 - 2, 9, 'PERSONAL QUE ACOMPAÑA (OPCIONAL)', datos.acompanante ? `CMP ${datos.acompanante}` : '—')
+    boxField(mx + cw / 2 + 2, y, cw / 2 - 2, 9, 'ESPECIALIDAD DE DESTINO', 'Pediatría / Cardiología')
+    y += 14
+
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(...gris)
+    doc.text('Los campos de "Coordinación con destino", "Condiciones del paciente", "Personal que recibe" y firmas se completan de forma manual al momento del traslado.', mx, y, { maxWidth: cw })
+    y += 8
+
+    // Firma y sello
+    doc.setDrawColor(...negro)
+    doc.line(mx + 10, y + 14, mx + 70, y + 14)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
+    doc.text('Firma y Sello — Responsable de Origen', mx + 40, y + 18, { align: 'center' })
+    doc.line(mx + 110, y + 14, mx + 170, y + 14)
+    doc.text('Firma y Sello — Personal que Acompaña', mx + 140, y + 18, { align: 'center' })
+
+    doc.setFontSize(6.5); doc.setTextColor(...gris)
+    doc.text('Documento generado por Sunqu · Apoyo a la decisión clínica, no reemplaza la evaluación del establecimiento receptor.', mx, 292, { maxWidth: cw })
+
+    doc.autoPrint()
+    window.open(doc.output('bloburl'), '_blank')
   }
 
   const facilities = [
-    { name: 'Hospital Regional Huancavelica', dist: '12 km', time: '25 min', status: 'Disponible', urgencia: 'alta', phone: '+51 67 452 890' },
-    { name: 'HRDLM Huancayo', dist: '48 km', time: '1h 10min', status: 'Disponible', urgencia: 'media', phone: '+51 64 231 456' },
-    { name: 'Hospital Arzobispo Loayza', dist: '280 km', time: '5h', status: 'Referencia Nacional', urgencia: 'baja', phone: '+51 1 411 7700' },
+    { name: 'Hospital Regional Huancavelica', dist: '12 km', time: '25 min', urgencia: 'alta', phone: '+51 67 452 890' },
+    { name: 'HRDLM Huancayo', dist: '48 km', time: '1h 10min', urgencia: 'media', phone: '+51 64 231 456' },
+    { name: 'Hospital Arzobispo Loayza', dist: '280 km', time: '5h', urgencia: 'baja', phone: '+51 1 411 7700' },
   ]
 
-  const specialists = [
-    { name: 'Dr. Carlos Quispe', specialty: 'Cardiología Pediátrica', status: 'disponible', phone: '+51 987 654 321' },
-    { name: 'Dra. María Flores', specialty: 'Neonatología', status: 'disponible', phone: '+51 976 543 210' },
-    { name: 'Dr. Jorge Lima', specialty: 'Cardiología Pediátrica', status: 'no_disponible', phone: '+51 965 432 109' },
-  ]
+  const faltantes = camposFaltantes()
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard>
         <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Outfit, sans-serif' }}>
-          Alerta de Caso
+          Resumen de Caso
         </div>
-        <div style={{ padding: '4px 0 8px', fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Edite el texto de ser necesario:</div>
-        <textarea
-          value={editableText}
-          onChange={e => setEditableText(e.target.value)}
-          rows={5}
-          style={{ width: '100%', padding: '12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 15, color: '#334155', lineHeight: 1.6, resize: 'vertical', outline: 'none' }}
-          onFocus={e => { e.currentTarget.style.borderColor = '#1a6fa8' }}
-          onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0' }}
-        />
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={handleCopiar} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+        {!listo ? (
+          <div style={{ padding: '14px', background: '#f8fafd', borderRadius: 10, border: '1px dashed #cbd5e1', fontSize: 13.8, color: '#64748b', fontFamily: 'Outfit, sans-serif', textAlign: 'center' }}>
+            Complete la medición y los síntomas (pestañas Medición y Paquete) para generar el resumen automáticamente.
+          </div>
+        ) : (
+          <div style={{ padding: '14px', background: '#f8fafd', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14.5, color: '#334155', fontFamily: 'Outfit, sans-serif', lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: 260, overflowY: 'auto' }}>
+            {resumen}
+          </div>
+        )}
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button onClick={handleCopiar} disabled={!listo} style={{ padding: '10px 8px', borderRadius: 10, border: '1px solid #c8ddf5', background: listo ? '#e8f1fb' : '#f1f5f9', color: listo ? '#155d8f' : '#94a3b8', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: listo ? 'pointer' : 'not-allowed' }}>
             {copiado ? '✓ Copiado' : '📋 Copiar'}
           </button>
-          <button onClick={handleWhatsApp} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #86efac', background: '#dcfce7', color: '#166534', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+          <button onClick={handleWhatsApp} disabled={!listo} style={{ padding: '10px 8px', borderRadius: 10, border: '1px solid #86efac', background: listo ? '#dcfce7' : '#f1f5f9', color: listo ? '#166534' : '#94a3b8', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: listo ? 'pointer' : 'not-allowed' }}>
             🟢 WhatsApp
           </button>
-          <button onClick={handleSMS} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+          <button onClick={handleSMS} disabled={!listo} style={{ gridColumn: '1 / -1', padding: '10px 8px', borderRadius: 10, border: '1px solid #c8ddf5', background: listo ? '#e8f1fb' : '#f1f5f9', color: listo ? '#155d8f' : '#94a3b8', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: listo ? 'pointer' : 'not-allowed' }}>
             💬 SMS
           </button>
         </div>
@@ -682,27 +966,97 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
 
       <SectionCard>
         <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Outfit, sans-serif' }}>
-          Documento de Derivación
+          Información Complementaria
         </div>
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={handlePDF} style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-            📄 PDF / Imprimir
-          </button>
+        <div style={{ fontSize: 11.5, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginBottom: 10 }}>
+          Los campos con <span style={{ color: '#dc2626' }}>*</span> son obligatorios para generar la Hoja de Referencia. El resto puede dejarse en blanco si no aplica.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 10, background: '#eef6fc', fontSize: 13, color: '#334155', fontFamily: 'Outfit, sans-serif' }}>
+            <b>Edad calculada:</b> {(() => {
+              const e = calcularEdadDetallada(paciente?.fecha_nacimiento)
+              return e ? `${e.anios} años, ${e.meses} meses, ${e.dias} días` : 'Falta fecha de nacimiento en la ficha del paciente'
+            })()}
+          </div>
+          <div>
+            <Label>¿Asegurado (SIS)?</Label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['si', 'no'] as const).map(v => (
+                <button key={v} onClick={() => setDatos(d => ({ ...d, asegurado: v }))} style={{ flex: 1, padding: '8px', borderRadius: 10, border: `2px solid ${datos.asegurado === v ? '#1a6fa8' : '#e2e8f0'}`, background: datos.asegurado === v ? '#e8f1fb' : '#f8fafd', color: datos.asegurado === v ? '#155d8f' : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 13.8, cursor: 'pointer' }}>
+                  {v.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label required>Establecimiento de destino</Label>
+            <select value={datos.establecimientoDestino} onChange={e => setDatos(d => ({ ...d, establecimientoDestino: e.target.value }))}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 17.2, outline: 'none' }}>
+              <option value="">Seleccionar...</option>
+              {ESTABLECIMIENTOS_DESTINO.map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label>Anamnesis</Label>
+            <textarea value={datos.anamnesis} onChange={e => setDatos(d => ({ ...d, anamnesis: e.target.value }))} rows={2} placeholder="Antecedentes relevantes (ej. madre con antecedente de...)"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 17.2, outline: 'none', resize: 'vertical' }} />
+          </div>
+          <div>
+            <Label>Examen físico (opcional)</Label>
+            <textarea value={datos.examenFisico} onChange={e => setDatos(d => ({ ...d, examenFisico: e.target.value }))} rows={2} placeholder="Hallazgos relevantes al examen"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 17.2, outline: 'none', resize: 'vertical' }} />
+          </div>
+          <div>
+            <Label required>Diagnóstico (CIE-10)</Label>
+            <input value={datos.diagnostico} onChange={e => setDatos(d => ({ ...d, diagnostico: e.target.value }))} placeholder="Ej. Sospecha de cardiopatía congénita crítica"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 17.2, outline: 'none' }} />
+          </div>
+          <div>
+            <Label>Tratamiento indicado (opcional)</Label>
+            <input value={datos.tratamiento} onChange={e => setDatos(d => ({ ...d, tratamiento: e.target.value }))} placeholder="Ej. Ninguno / Oxígeno suplementario"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 17.2, outline: 'none' }} />
+          </div>
+          <div>
+            <Label>Personal que acompaña — código CMP (opcional)</Label>
+            <input value={datos.acompanante} onChange={e => setDatos(d => ({ ...d, acompanante: e.target.value }))} placeholder="Ej. CMP 12345"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #e2e8f0', background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 17.2, outline: 'none' }} />
+          </div>
         </div>
       </SectionCard>
 
-      {tamizajeActual?.resultado === 'positivo' && (
-        <div style={{ padding: '14px 16px', background: '#fee2e2', borderRadius: 14, border: '1px solid #fca5a5' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#7f1d1d', marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>⚠ Caso grave — instrucciones</div>
-          <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {getInstrucciones('positivo').map((inst, i) => (
-              <li key={i} style={{ fontSize: 13.8, color: '#7f1d1d', fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
-            ))}
-          </ul>
+      <SectionCard>
+        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, fontFamily: 'Outfit, sans-serif' }}>
+          Documento de Derivación
         </div>
-      )}
+        {intentoDescarga && faltantes.length > 0 && (
+          <div style={{ marginBottom: 10, padding: '10px 12px', background: '#fff7ed', borderRadius: 10, border: '1px solid #fed7aa', fontSize: 12.6, color: '#9a3412', fontFamily: 'Outfit, sans-serif' }}>
+            ⚠ Complete todos los datos para la impresión de la derivación: {faltantes.join(', ')}.
+          </div>
+        )}
+        <button onClick={handlePDF} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #c8ddf5', background: '#e8f1fb', color: '#155d8f', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 17.2, cursor: 'pointer' }}>
+          📄 PDF / Imprimir
+        </button>
+      </SectionCard>
 
-      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Establecimientos Cercanos</div>
+      {tamizajeActual && (() => {
+        const colores = {
+          positivo: { bg: '#fee2e2', border: '#fca5a5', text: '#7f1d1d', titulo: '⚠ Caso grave — instrucciones' },
+          repetir: { bg: '#fef9c3', border: '#fde047', text: '#713f12', titulo: '⚠ Repetir medición — instrucciones' },
+          negativo: { bg: '#d1fae5', border: '#6ee7b7', text: '#065f46', titulo: '✓ Indicaciones' },
+        }[tamizajeActual.resultado]
+        return (
+          <div style={{ padding: '14px 16px', background: colores.bg, borderRadius: 14, border: `1px solid ${colores.border}` }}>
+            <div style={{ fontSize: 17.2, fontWeight: 700, color: colores.text, marginBottom: 8, fontFamily: 'Outfit, sans-serif' }}>{colores.titulo}</div>
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {getInstrucciones(tamizajeActual.resultado).map((inst, i) => (
+                <li key={i} style={{ fontSize: 13.8, color: colores.text, fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>{inst}</li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
+
+      <div style={{ fontSize: 17.2, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Establecimientos Cercanos</div>
       {facilities.map((f, i) => (
         <div key={i} style={{ padding: '14px', background: '#fff', borderRadius: 14, border: `2px solid ${f.urgencia === 'alta' ? '#6ee7b7' : '#e2e8f0'}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
@@ -712,25 +1066,18 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
                 📍 {f.dist} · 🕐 {f.time}
               </div>
             </div>
-            <div style={{ padding: '4px 10px', borderRadius: 20, background: f.urgencia === 'alta' ? '#d1fae5' : f.urgencia === 'media' ? '#fef9c3' : '#f1f5f9', border: `1px solid ${f.urgencia === 'alta' ? '#6ee7b7' : f.urgencia === 'media' ? '#fde047' : '#e2e8f0'}` }}>
-              <span style={{ fontSize: 12.6, fontWeight: 700, color: f.urgencia === 'alta' ? '#065f46' : f.urgencia === 'media' ? '#713f12' : '#64748b', fontFamily: 'Outfit, sans-serif' }}>{f.status}</span>
-            </div>
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-            <a href={`tel:${f.phone}`} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: '#0f4a73', color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15 }}>
+            <a href={`tel:${f.phone}`} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: '#0f4a73', color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 17.2 }}>
               <IconPhone /> Llamar
             </a>
-            <button style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '2px solid #0f4a73', background: '#fff', color: '#0f4a73', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-              <IconMessage /> Mensaje
-            </button>
           </div>
         </div>
       ))}
 
-
       <div style={{ padding: '14px 16px', background: '#fef9c3', borderRadius: 14, border: '1px solid #fde047' }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#713f12', marginBottom: 6, fontFamily: 'Outfit, sans-serif' }}>⚠ Teleconsulta de Respaldo</div>
-        <div style={{ fontSize: 15, color: '#713f12', marginBottom: 10, fontFamily: 'Outfit, sans-serif', opacity: 0.85 }}>
+        <div style={{ fontSize: 17.2, fontWeight: 700, color: '#713f12', marginBottom: 6, fontFamily: 'Outfit, sans-serif' }}>⚠ Teleconsulta de Respaldo</div>
+        <div style={{ fontSize: 17.2, color: '#713f12', marginBottom: 10, fontFamily: 'Outfit, sans-serif', opacity: 0.85 }}>
           Si no hay especialista disponible o no es posible la transferencia inmediata, use la línea de teleconsulta nacional:
         </div>
         <a href="tel:+51800001234" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px', background: '#ca8a04', borderRadius: 12, color: '#fff', textDecoration: 'none', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 17.3 }}>
@@ -748,14 +1095,80 @@ const mockHistory: Screening[] = [
   { id: 'SCR-004', paciente: 'R.N. Ccori B.', fecha: '10/08/2026 09:45', spo2Pre: 94, spo2Post: 94, altitud: 3400, resultado: 'negativo', syncStatus: 'synced' },
 ]
 
+function CaseDetailModal({ caso, onClose }: { caso: Screening; onClose: () => void }) {
+  const resultLabel = { negativo: 'NEGATIVO', repetir: 'REPETIR', positivo: 'POSITIVO' }
+  const resultColor = { negativo: '#059669', repetir: '#ca8a04', positivo: '#dc2626' }
+  const rColor = resultColor[caso.resultado!]
+  const derivado = caso.resultado !== 'negativo'
+
+  return (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(15,74,115,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Outfit, sans-serif' }}>Detalle del Tamizaje</div>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18.4, color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ fontSize: 16.1, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', marginBottom: 2 }}>{caso.paciente}</div>
+        <div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginBottom: 14 }}>{caso.fecha}</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+          {[
+            { label: 'SpO₂ Pre', value: `${caso.spo2Pre}%` },
+            { label: 'SpO₂ Post', value: `${caso.spo2Post}%` },
+            { label: 'Altitud', value: `${caso.altitud.toLocaleString('es-PE')} m` },
+            { label: 'Resultado', value: resultLabel[caso.resultado!] },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ padding: '8px 12px', background: '#f8fafd', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 11.5, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>{label}</div>
+              <div style={{ fontSize: 17.2, fontWeight: 700, color: '#0f4a73', fontFamily: 'JetBrains Mono, monospace' }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, background: derivado ? '#fee2e2' : '#d1fae5', border: `1px solid ${derivado ? '#fca5a5' : '#6ee7b7'}`, marginBottom: 8 }}>
+          <span style={{ fontSize: 13.8, fontWeight: 700, color: derivado ? '#7f1d1d' : '#065f46', fontFamily: 'Outfit, sans-serif' }}>
+            {derivado ? '⚠ Derivado / requiere seguimiento' : '✓ No derivado — resultado normal'}
+          </span>
+        </div>
+        <div style={{ padding: '3px 10px', borderRadius: 20, background: `${rColor}18`, border: `1px solid ${rColor}44`, display: 'inline-block' }}>
+          <span style={{ fontSize: 12.6, fontWeight: 800, color: rColor, fontFamily: 'Outfit, sans-serif' }}>{resultLabel[caso.resultado!]}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ViewMessageModal({ mensaje, onClose }: { mensaje: string; onClose: () => void }) {
+  const [copiado, setCopiado] = useState(false)
+  return (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(15,74,115,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Outfit, sans-serif' }}>Mensaje a enviar</div>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18.4, color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ padding: '14px', background: '#f8fafd', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 16.1, color: '#334155', fontFamily: 'Outfit, sans-serif', whiteSpace: 'pre-line', lineHeight: 1.6, marginBottom: 12 }}>
+          {mensaje}
+        </div>
+        <button
+          onClick={async () => { await navigator.clipboard.writeText(mensaje); setCopiado(true); setTimeout(() => setCopiado(false), 1800) }}
+          style={{ width: '100%', minHeight: 46, borderRadius: 12, border: 'none', background: '#1a6fa8', color: '#fff', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 13.8, cursor: 'pointer' }}
+        >
+          {copiado ? '✓ Copiado' : '📋 Copiar mensaje'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: NetworkStatus; setNetworkStatus: (s: NetworkStatus) => void }) {
-  const { paciente, tamizajeActual, medico } = usePatient()
+  const { paciente, tamizajeActual } = usePatient()
   const [urgencia, setUrgencia] = useState<'alta' | 'media' | 'baja'>('alta')
   const [alertMsg, setAlertMsg] = useState('')
-  const [autoSync, setAutoSync] = useState(true)
-  const [syncing, setSyncing] = useState(false)
   const [alertSent, setAlertSent] = useState(false)
   const [historial, setHistorial] = useState<Screening[]>(mockHistory)
+  const [detalle, setDetalle] = useState<Screening | null>(null)
+  const [verMensaje, setVerMensaje] = useState(false)
 
   useEffect(() => {
     obtenerHistorial().then(data => {
@@ -774,49 +1187,66 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
     ? [{ id: 'actual', paciente: `${paciente.nombre || paciente.dni} (activo)`, fecha: 'Ahora', spo2Pre: tamizajeActual.spo2_pre, spo2Post: tamizajeActual.spo2_post, altitud: tamizajeActual.altitud, resultado: tamizajeActual.resultado, syncStatus: networkStatus === 'offline' ? 'pending' as const : 'synced' as const }, ...historial]
     : historial
 
-  const handleSync = () => {
-    if (networkStatus === 'offline') return
-    setSyncing(true)
-    setNetworkStatus('syncing')
-    setTimeout(() => {
-      setSyncing(false)
-      setNetworkStatus('online')
-    }, 2500)
-  }
-
-  const handleSendAlert = () => {
-    if (!alertMsg.trim()) return
-    setAlertSent(true)
-    setTimeout(() => setAlertSent(false), 3000)
-    setAlertMsg('')
-  }
-
   const urgenciaConfig = {
-    alta: { color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', label: 'URGENTE' },
-    media: { color: '#ca8a04', bg: '#fef9c3', border: '#fde047', label: 'MEDIO' },
-    baja: { color: '#1a6fa8', bg: '#e8f1fb', border: '#c8ddf5', label: 'INFORMATIVO' },
+    alta: { color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', label: 'URGENTE', icono: '🔴' },
+    media: { color: '#ca8a04', bg: '#fef9c3', border: '#fde047', label: 'MEDIO', icono: '🟡' },
+    baja: { color: '#1a6fa8', bg: '#e8f1fb', border: '#c8ddf5', label: 'INFORMATIVO', icono: '🔵' },
   }
+
+  const sintomasActivos = (tamizajeActual?.sintomas ?? []).map(s => {
+    if (s.startsWith('otro:')) return `🔸 Otro: ${s.replace('otro:', '')}`
+    return `🔸 ${SINTOMAS_LABELS[s]?.icon ?? ''} ${SINTOMAS_LABELS[s]?.label ?? s}`
+  })
+  const edadDiasComunidad = calcularEdadDias(paciente?.fecha_nacimiento)
+  const paqueteComunidad = tamizajeActual
+    ? `🚨 NUEVO CASO EN RED — PRIORIDAD: ${urgenciaConfig[urgencia].icono} ${urgenciaConfig[urgencia].label}\n\n` +
+      `👶 PERFIL DEL NEONATO (Anónimo)\n` +
+      `Edad: ${edadDiasComunidad !== null ? `${edadDiasComunidad} días de nacido` : '—'}\n` +
+      `Historial Médico: ${paciente?.historial || '—'}\n\n` +
+      `🏥 DATOS DEL TAMIZAJE\n` +
+      `Fecha: ${tamizajeActual.creado_en ? new Date(tamizajeActual.creado_en).toLocaleString('es-PE') : '—'}\n` +
+      `Altitud: ${tamizajeActual.altitud.toLocaleString('es-PE')} msnm\n\n` +
+      `📊 RESULTADOS DE OXIMETRÍA\n` +
+      `✋ SpO2 Pre-ductal: ${tamizajeActual.spo2_pre}%\n` +
+      `🦶 SpO2 Post-ductal: ${tamizajeActual.spo2_post}%\n` +
+      `🛑 Resultado Automático: ${tamizajeActual.resultado.toUpperCase()}\n\n` +
+      `🩺 EVALUACIÓN CLÍNICA\n` +
+      `Síntomas Reportados:\n` +
+      (sintomasActivos.length ? sintomasActivos.join('\n') : '🔸 Ninguno registrado') + `\n\n` +
+      `📌 Estado Actual: ${alertMsg || '—'}`
+    : 'Completa la medición para armar el paquete del caso.'
 
   const syncStatusConfig = {
     synced: { color: '#059669', bg: '#d1fae5', label: 'Sincronizado', icon: '✓' },
     pending: { color: '#ca8a04', bg: '#fef9c3', label: 'Pendiente', icon: '⏳' },
     failed: { color: '#dc2626', bg: '#fee2e2', label: 'Error', icon: '✕' },
   }
-
   const resultLabel = { negativo: 'NEGATIVO', repetir: 'REPETIR', positivo: 'POSITIVO' }
   const resultColor = { negativo: '#059669', repetir: '#ca8a04', positivo: '#dc2626' }
+
+  const handleSendAlert = () => {
+    if (!tamizajeActual) return
+    setAlertSent(true)
+    setTimeout(() => setAlertSent(false), 3000)
+  }
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard>
-        <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
-          Alerta a Comunidad
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: urgenciaConfig[urgencia].color }} />
+          <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Outfit, sans-serif' }}>
+            Red de Apoyo — Comunidad de Especialistas
+          </div>
+        </div>
+        <div style={{ fontSize: 12.6, color: '#64748b', fontFamily: 'Outfit, sans-serif', marginBottom: 12 }}>
+          Comparte el caso (sin datos identificables) con la comunidad de médicos voluntarios para recibir orientación.
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {(['alta', 'media', 'baja'] as const).map(u => {
             const cfg = urgenciaConfig[u]
             return (
-              <button key={u} onClick={() => setUrgencia(u)} style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: `2px solid ${urgencia === u ? cfg.color : '#e2e8f0'}`, background: urgencia === u ? cfg.bg : '#f8fafd', color: urgencia === u ? cfg.color : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 12.6, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', transition: 'all 0.15s' }}>
+              <button key={u} onClick={() => setUrgencia(u)} style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: `2px solid ${urgencia === u ? cfg.color : '#e2e8f0'}`, background: urgencia === u ? cfg.bg : '#f8fafd', color: urgencia === u ? cfg.color : '#64748b', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 12.6, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {cfg.label}
               </button>
             )
@@ -825,41 +1255,41 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
         <textarea
           value={alertMsg}
           onChange={e => setAlertMsg(e.target.value)}
-          placeholder="Escriba el mensaje de alerta..."
-          rows={3}
-          style={{ width: '100%', padding: '12px', borderRadius: 10, border: `2px solid ${alertSent ? '#6ee7b7' : '#e2e8f0'}`, background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 16.1, color: '#334155', lineHeight: 1.5, resize: 'none', outline: 'none', transition: 'border-color 0.15s' }}
-          onFocus={e => { e.currentTarget.style.borderColor = urgenciaConfig[urgencia].color }}
-          onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0' }}
+          placeholder='Ej. "Caso 1 del día. Buen día doctores, llegó este caso, agradecería su apoyo."'
+          rows={2}
+          style={{ width: '100%', padding: '12px', borderRadius: 10, border: `2px solid ${alertSent ? '#6ee7b7' : '#e2e8f0'}`, background: '#f8fafd', fontFamily: 'Outfit, sans-serif', fontSize: 16.1, color: '#334155', lineHeight: 1.5, resize: 'none', outline: 'none' }}
         />
-        {!alertMsg.trim() && !alertSent && (
-          <div style={{ marginTop: 6, fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Campo requerido para enviar alerta.</div>
-        )}
-        <BigButton onClick={handleSendAlert} disabled={!alertMsg.trim()} color={urgenciaConfig[urgencia].color} style={{ marginTop: 10 }}>
-          <IconAlert /> Enviar Alerta {urgenciaConfig[urgencia].label}
-        </BigButton>
+        <div style={{ marginTop: 10, padding: '10px 12px', background: '#f8fafd', borderRadius: 10, border: '1px dashed #cbd5e1', fontSize: 13.8, color: '#64748b', fontFamily: 'monospace', whiteSpace: 'pre-line' }}>
+          {paqueteComunidad.slice(0, 90)}…
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <BigButton onClick={handleSendAlert} disabled={!tamizajeActual} color={urgenciaConfig[urgencia].color}>
+            <IconAlert /> Enviar a la Comunidad
+          </BigButton>
+          <button onClick={() => setVerMensaje(true)} disabled={!tamizajeActual} style={{ flexShrink: 0, minHeight: 56, padding: '0 16px', borderRadius: 14, border: '2px solid #0f4a73', background: '#fff', color: '#0f4a73', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 13.8, cursor: tamizajeActual ? 'pointer' : 'not-allowed', opacity: tamizajeActual ? 1 : 0.5 }}>
+            👁 Ver mensaje
+          </button>
+        </div>
         {alertSent && (
-          <div style={{ marginTop: 8, padding: '10px 14px', background: '#d1fae5', borderRadius: 10, fontSize: 15, fontWeight: 600, color: '#065f46', fontFamily: 'Outfit, sans-serif' }}>
-            ✓ Alerta enviada exitosamente.
+          <div style={{ marginTop: 8, padding: '10px 14px', background: '#d1fae5', borderRadius: 10, fontSize: 17.2, fontWeight: 600, color: '#065f46', fontFamily: 'Outfit, sans-serif' }}>
+            ✓ Caso compartido con la red de apoyo.
           </div>
         )}
       </SectionCard>
 
-      
-
-      <div style={{ fontSize: 15, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Historial de Tamizajes</div>
+      <div style={{ fontSize: 17.2, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif', padding: '0 2px' }}>Historial de Tamizajes</div>
       {historialConActual.map(s => {
         const syncCfg = syncStatusConfig[s.syncStatus]
         const rColor = resultColor[s.resultado!]
         return (
-          <div key={s.id} style={{ padding: '14px', background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div key={s.id} onClick={() => setDetalle(s)} style={{ padding: '14px', background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
               <div>
                 <div style={{ fontSize: 16.1, fontWeight: 700, color: '#0f4a73', fontFamily: 'Outfit, sans-serif' }}>{s.paciente}</div>
-                <div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>{s.id} · {s.fecha}</div><div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{s.altitud.toLocaleString('es-PE')} m.s.n.m. · {s.fecha}</div>              </div>
+                <div style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif', marginTop: 2 }}>{s.altitud.toLocaleString('es-PE')} m.s.n.m. · {s.fecha}</div>
+              </div>
               <div style={{ padding: '4px 10px', borderRadius: 20, background: syncCfg.bg, border: `1px solid ${s.syncStatus === 'synced' ? '#6ee7b7' : s.syncStatus === 'pending' ? '#fde047' : '#fca5a5'}`, flexShrink: 0 }}>
-                <span style={{ fontSize: 12.6, fontWeight: 700, color: syncCfg.color, fontFamily: 'Outfit, sans-serif' }}>
-                  {syncCfg.icon} {syncCfg.label}
-                </span>
+                <span style={{ fontSize: 12.6, fontWeight: 700, color: syncCfg.color, fontFamily: 'Outfit, sans-serif' }}>{syncCfg.icon} {syncCfg.label}</span>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -876,6 +1306,9 @@ function AlertasScreen({ networkStatus, setNetworkStatus }: { networkStatus: Net
           </div>
         )
       })}
+
+      {detalle && <CaseDetailModal caso={detalle} onClose={() => setDetalle(null)} />}
+      {verMensaje && <ViewMessageModal mensaje={paqueteComunidad} onClose={() => setVerMensaje(false)} />}
     </div>
   )
 }
@@ -957,16 +1390,14 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 
       <div className="splash-logo" style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
         <div style={{ width: 72, height: 72, background: 'linear-gradient(135deg, #1a6fa8, #1d95a1)', borderRadius: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 32px rgba(26,111,168,0.45)', animation: 'pulse 2.2s ease-in-out infinite' }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
+          <img src="/favicon.svg" alt="Sunqu" style={{ width: 46, height: 46 }} />
         </div>
       </div>
 
       <div className="splash-title" style={{ textAlign: 'center', marginBottom: 6 }}>
         <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 34.5, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>Sunqu</div>
       </div>
-      <div className="splash-sub" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, color: '#7bb8e8', marginBottom: 40, letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1.5 }}>
+      <div className="splash-sub" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 17.2, color: '#7bb8e8', marginBottom: 40, letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1.5 }}>
         Cribado de Oximetría Neonatal<br />
         <span style={{ fontSize: 12.6, color: '#4a7fa8' }}>Perú · Zonas de Alta Altitud</span>
       </div>
@@ -1013,6 +1444,81 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   )
 }
 
+function LanguageModal({ onClose }: { onClose: () => void }) {
+  const [idioma, setIdioma] = useState<string>(() => localStorage.getItem('sunqu.idioma') || 'es')
+  const opciones = [
+    { code: 'es', label: 'Castellano', disponible: true },
+    { code: 'qu', label: 'Runasimi (Quechua)', disponible: false },
+    { code: 'ay', label: 'Aymar aru (Aymara)', disponible: false },
+  ]
+  const elegir = (code: string) => {
+    setIdioma(code)
+    localStorage.setItem('sunqu.idioma', code)
+  }
+  return (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(15,74,115,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Outfit, sans-serif' }}>Idioma / Simi</div>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18.4, color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          {opciones.map(o => (
+            <button key={o.code} onClick={() => o.disponible && elegir(o.code)} disabled={!o.disponible}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 12, border: `2px solid ${idioma === o.code ? '#1a6fa8' : '#e2e8f0'}`, background: idioma === o.code ? '#e8f1fb' : '#f8fafd', cursor: o.disponible ? 'pointer' : 'not-allowed', opacity: o.disponible ? 1 : 0.6 }}>
+              <span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 600, color: '#0f4a73', fontSize: 17.2 }}>{o.label}</span>
+              {!o.disponible && <span style={{ fontSize: 12.6, color: '#94a3b8', fontFamily: 'Outfit, sans-serif' }}>Próximamente</span>}
+              {idioma === o.code && o.disponible && <IconCheck size={16} />}
+            </button>
+          ))}
+        </div>
+        <div style={{ padding: '10px 12px', background: '#fff7ed', borderRadius: 10, border: '1px solid #fed7aa', fontSize: 11.5, color: '#9a3412', fontFamily: 'Outfit, sans-serif', lineHeight: 1.5 }}>
+          ⚠ Quechua y aymara están en preparación: una app clínica necesita que la traducción la revise un hablante nativo con formación en salud, para no arriesgar un error de interpretación en un caso real.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FaqModal({ onClose }: { onClose: () => void }) {
+  const [abierto, setAbierto] = useState<number | null>(null)
+  const faqs = [
+    { q: '¿Qué es el tamizaje neonatal cardiológico?', a: 'Es una prueba de oximetría de pulso que mide el SpO₂ en mano derecha (preductal) y en un pie (postductal) para detectar cardiopatías congénitas críticas antes del alta del recién nacido.' },
+    { q: '¿Cuándo debo repetir la medición?', a: 'Cuando el resultado cae en el rango "Repetir" según los umbrales de altitud. Se recomienda esperar 1 hora y volver a medir; el número de reintentos permitidos depende de la altitud del establecimiento.' },
+    { q: '¿Por qué los umbrales cambian según la altitud?', a: 'A mayor altitud hay menor saturación basal de oxígeno en recién nacidos sanos, por lo que los valores de corte para POSITIVO/NEGATIVO se ajustan según el nivel de altitud (baja, media o gran altitud).' },
+    { q: '¿Qué significa un resultado POSITIVO?', a: 'Indica sospecha de cardiopatía congénita crítica. El bebé debe ser evaluado por cardiología de forma urgente; use la pestaña de Derivación para generar el resumen del caso.' },
+    { q: '¿Cómo envío un caso a la Red de Derivación?', a: 'En la pestaña "Derivación" complete los datos faltantes indicados, y use los botones de Copiar, WhatsApp o SMS para enviar el resumen del tamizaje al centro de referencia.' },
+    { q: '¿Qué hago si no tengo conexión a internet?', a: 'La app funciona offline: los tamizajes se guardan localmente y se sincronizan automáticamente cuando vuelva la conexión. El estado se muestra en la barra superior (En Línea / Sin Conexión / Sincronizando).' },
+    { q: '¿Los datos del paciente son confidenciales?', a: 'Sí. El mensaje enviado a la Red de Comunidad es anónimo (sin nombre ni DNI); solo el resumen de Derivación, dirigido al establecimiento de salud, incluye datos identificables del paciente.' },
+  ]
+  return (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(15,74,115,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Outfit, sans-serif' }}>Preguntas Frecuentes</div>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18.4, color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '65vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+          {faqs.map((f, i) => (
+            <div key={i} style={{ borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafd', overflow: 'hidden' }}>
+              <button onClick={() => setAbierto(abierto === i ? null : i)}
+                style={{ width: '100%', textAlign: 'left', padding: '12px 14px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 600, color: '#0f4a73', fontSize: 14.5 }}>{f.q}</span>
+                <span style={{ color: '#7bb8e8', fontSize: 14, flexShrink: 0 }}>{abierto === i ? '▲' : '▼'}</span>
+              </button>
+              {abierto === i && (
+                <div style={{ padding: '0 14px 12px', fontFamily: 'Outfit, sans-serif', fontSize: 13, color: '#475569', lineHeight: 1.55 }}>
+                  {f.a}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('tutorial')
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>('online')
@@ -1021,6 +1527,8 @@ export default function App() {
   const [welcome, setWelcome] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showWifi, setShowWifi] = useState(false)
+  const [showLanguage, setShowLanguage] = useState(false)
+  const [showFaq, setShowFaq] = useState(false)
 
   const handleLogin = (m: Medico) => {
     setMedico(m)
@@ -1050,21 +1558,15 @@ export default function App() {
                 <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13.8, color: '#a9d0ec' }}>{medico.establecimiento}</span>
               </div>
             )}
-            <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onProfileClick={() => setShowProfile(true)} onWifiClick={() => setShowWifi(true)} />
+            <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onProfileClick={() => setShowProfile(true)} onWifiClick={() => setShowWifi(true)} onSettingsClick={() => setShowLanguage(true)} onFaqClick={() => setShowFaq(true)} />
             {showWifi && (
-              <WifiModal
-                networkStatus={networkStatus}
-                setNetworkStatus={setNetworkStatus}
-                onClose={() => setShowWifi(false)}
-              />
+              <WifiModal networkStatus={networkStatus} setNetworkStatus={setNetworkStatus} onClose={() => setShowWifi(false)} />
             )}
             {showProfile && (
-              <ProfileModal
-                medico={medico}
-                onClose={() => setShowProfile(false)}
-                onLogout={() => { clearSession(); setMedico(null); setShowProfile(false) }}
-              />
+              <ProfileModal medico={medico} onClose={() => setShowProfile(false)} onLogout={() => { clearSession(); setMedico(null); setShowProfile(false) }} />
             )}
+            {showLanguage && <LanguageModal onClose={() => setShowLanguage(false)} />}
+            {showFaq && <FaqModal onClose={() => setShowFaq(false)} />}
             {screen !== 'tutorial' && screen !== 'alertas' && (
               <div style={{ padding: '12px 16px 0' }}>
                 <PatientPicker />
