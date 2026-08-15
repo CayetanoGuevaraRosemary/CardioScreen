@@ -10,6 +10,8 @@ interface PatientCtx {
   setPaciente: (p: Paciente | null) => void
   tamizajeActual: Tamizaje | null
   setTamizajeActual: (t: Tamizaje | null) => void
+  paqueteEnviadoEn: string | null
+  setPaqueteEnviadoEn: (v: string | null) => void
 }
 
 const Ctx = createContext<PatientCtx | null>(null)
@@ -18,9 +20,10 @@ export function PatientProvider({ children, medico: initialMedico }: { children:
   const [medico, setMedico] = useState<Medico | null>(initialMedico)
   const [paciente, setPaciente] = useState<Paciente | null>(null)
   const [tamizajeActual, setTamizajeActual] = useState<Tamizaje | null>(null)
+  const [paqueteEnviadoEn, setPaqueteEnviadoEn] = useState<string | null>(null)
 
   return (
-    <Ctx.Provider value={{ medico, setMedico, paciente, setPaciente, tamizajeActual, setTamizajeActual }}>
+    <Ctx.Provider value={{ medico, setMedico, paciente, setPaciente, tamizajeActual, setTamizajeActual, paqueteEnviadoEn, setPaqueteEnviadoEn }}>
       {children}
     </Ctx.Provider>
   )
