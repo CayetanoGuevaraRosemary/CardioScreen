@@ -8,6 +8,7 @@ import { getSession, clearSession, type Medico } from './lib/auth'
 import { obtenerAltitud } from './lib/geolocation'
 import { guardarTamizaje, obtenerHistorial, type Tamizaje } from './lib/tamizajes'
 import { getInstrucciones } from './lib/risk'
+import { getProcedimientosPorSintomas, type ProcedimientoNotif } from './lib/notifications'
 import { jsPDF } from 'jspdf'
 import type { Paciente } from './lib/patients'
 import { PatientProvider, usePatient } from './context/PatientContext'
@@ -158,6 +159,12 @@ const IconSend = () => (
     <polygon points="22 2 15 22 11 13 2 9 22 2" />
   </svg>
 )
+const IconBell = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+)
 const IconGear = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" />
@@ -174,7 +181,64 @@ const SINTOMAS_LABELS: Record<string, { label: string; icon: string }> = {
   otro: { label: 'Otro síntoma indicado', icon: '🚩' },
 }
 
-function TopBar({ networkStatus, screen, medico, onProfileClick, onWifiClick, onSettingsClick, onFaqClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onProfileClick?: () => void; onWifiClick?: () => void; onSettingsClick?: () => void; onFaqClick?: () => void }) {
+function NotificacionesModal({ items, onClose }: { items: ProcedimientoNotif[]; onClose: () => void }) {
+  const [abierto, setAbierto] = useState<string | null>(null)
+  return (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 60, background: 'rgba(15,74,115,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: '#fff', borderRadius: 18, padding: 18, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 13.8, fontWeight: 700, color: '#1a6fa8', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Outfit, sans-serif' }}>Notificaciones de Manejo</div>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 18.4, color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+        </div>
+        {items.length === 0 ? (
+          <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13.5, color: '#64748b', padding: '8px 2px' }}>Aún no hay notificaciones. Aparecerán tras guardar un tamizaje con resultado que requiera acción.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {items.map((n, i) => (
+              <div key={n.id} style={{ borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafd', overflow: 'hidden' }}>
+                <button onClick={() => setAbierto(abierto === n.id ? null : n.id)}
+                  style={{ width: '100%', textAlign: 'left', padding: '12px 14px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', background: '#dc2626', color: '#fff', fontSize: 11.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Outfit, sans-serif' }}>{i + 1}</span>
+                  <span style={{ flex: 1 }}>
+                    <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 600, color: '#0f4a73', fontSize: 14 }}>{n.titulo}</div>
+                    <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 12, color: '#64748b', marginTop: 2 }}>{n.resumen}</div>
+                  </span>
+                  <span style={{ color: '#7bb8e8', fontSize: 14, flexShrink: 0 }}>{abierto === n.id ? '▲' : '▼'}</span>
+                </button>
+                {abierto === n.id && (
+                  <div style={{ padding: '0 14px 12px 46px', fontFamily: 'Outfit, sans-serif', fontSize: 12.8, color: '#475569', lineHeight: 1.55 }}>
+                    <ul style={{ margin: 0, paddingLeft: 16 }}>
+                      {n.pasos.map((p, j) => <li key={j} style={{ marginBottom: 4 }}>{p}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function NotificationBell({ count, onClick }: { count: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Notificaciones de manejo"
+      style={{ position: 'relative', width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+    >
+      <IconBell />
+      {count > 0 && (
+        <span style={{ position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16, padding: '0 3px', borderRadius: 8, background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 700, fontFamily: 'Outfit, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
+          {count}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function TopBar({ networkStatus, screen, medico, notifItems, onProfileClick, onWifiClick, onSettingsClick, onFaqClick, onBellClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; notifItems?: ProcedimientoNotif[]; onProfileClick?: () => void; onWifiClick?: () => void; onSettingsClick?: () => void; onFaqClick?: () => void; onBellClick?: () => void }) {
   const titles: Record<Screen, string> = {
     tutorial: 'Tutorial de Tamizaje',
     medicion: 'Medición SpO₂',
@@ -194,6 +258,7 @@ function TopBar({ networkStatus, screen, medico, onProfileClick, onWifiClick, on
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {onBellClick && <NotificationBell count={notifItems?.length ?? 0} onClick={onBellClick} />}
         <button
           onClick={onSettingsClick}
           title="Idioma / Configuración"
@@ -520,7 +585,7 @@ function MedicionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
 }
 
 function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
-  const { paciente, setPaciente, tamizajeActual, setTamizajeActual } = usePatient()
+  const { paciente, setPaciente, tamizajeActual, setTamizajeActual, setPaqueteEnviadoEn } = usePatient()
   const [otroTexto, setOtroTexto] = useState(() => {
     const s = tamizajeActual?.sintomas?.find(x => x.startsWith('otro:'))
     return s ? s.replace('otro:', '') : ''
@@ -562,6 +627,7 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     setSendState('sending')
     setTimeout(() => {
       setSendState(networkStatus === 'offline' ? 'queued' : 'sent')
+      setPaqueteEnviadoEn(new Date().toISOString())
     }, 1800)
   }
 
@@ -773,7 +839,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
   const handleSMS = () => { if (resumen) window.location.href = `sms:?&body=${encodeURIComponent(resumen)}` }
   const handleWhatsApp = () => { if (resumen) window.open(`https://wa.me/?text=${encodeURIComponent(resumen)}`, '_blank') }
 
-  // Campos obligatorios para poder generar la Hoja de Referencia (marcados con * en el formulario).
   const camposFaltantes = (): string[] => {
     const faltan: string[] = []
     if (!paciente?.nombre) faltan.push('Nombre del paciente')
@@ -802,7 +867,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     const cw = w - 2 * mx // 190
     doc.setDrawColor(0); doc.setLineWidth(0.25); doc.setTextColor(...negro)
 
-    // ---- Encabezado ----
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
     doc.text('Ministerio de Salud', mx, 14)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5)
@@ -820,7 +884,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     const edadDet = calcularEdadDetallada(paciente?.fecha_nacimiento)
     const esUrgente = tamizajeActual?.resultado === 'positivo'
 
-    // helpers
     const lbl = (t: string, x: number, yy: number) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(...gris); doc.text(t, x, yy) }
     const val = (t: string, x: number, yy: number, size = 8.5) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(size); doc.setTextColor(...negro); doc.text(t || '—', x, yy) }
     const boxField = (x: number, yy: number, ww: number, h: number, label: string, value: string) => {
@@ -843,7 +906,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     }
     const seccion = (t: string) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...negro); doc.text(t, mx, y); y += 4 }
 
-    // ---- 1. DATOS GENERALES ----
     seccion('1.- DATOS GENERALES')
     const hoy = new Date()
     boxField(mx, y, 42, 9, 'FECHA', hoy.toLocaleDateString('es-PE'))
@@ -858,7 +920,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     boxField(mx, y, cw, 8, 'ESTABLECIMIENTO DESTINO', datos.establecimientoDestino)
     y += 13
 
-    // ---- 2. IDENTIFICACIÓN DEL USUARIO ----
     seccion('2.- IDENTIFICACIÓN DEL USUARIO')
     boxField(mx, y, cw, 8, 'NOMBRES Y APELLIDOS', paciente?.nombre || 'Recién nacido')
     y += 10
@@ -873,7 +934,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     boxField(mx, y, cw, 8, 'DIRECCIÓN', `S/N - Jurisdicción ${paciente?.establecimiento || medico?.establecimiento || '—'}`)
     y += 13
 
-    // ---- 3. RESUMEN DE HISTORIA CLÍNICA ----
     seccion('3.- RESUMEN DE HISTORIA CLÍNICA')
     parrafoBox(mx, y, cw, 16, 'ANAMNESIS', datos.anamnesis)
     y += 18
@@ -894,7 +954,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     boxField(mx, y, cw, 9, 'TRATAMIENTO INDICADO (OPCIONAL)', datos.tratamiento || 'Ninguno')
     y += 13
 
-    // ---- 4. DATOS DE LA REFERENCIA ----
     seccion('4.- DATOS DE LA REFERENCIA')
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
     circ(mx + 4, y + 3, esUrgente, 'Emergencia (referencia urgente)')
@@ -913,7 +972,6 @@ function DerivacionScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
     doc.text('Los campos de "Coordinación con destino", "Condiciones del paciente", "Personal que recibe" y firmas se completan de forma manual al momento del traslado.', mx, y, { maxWidth: cw })
     y += 8
 
-    // Firma y sello
     doc.setDrawColor(...negro)
     doc.line(mx + 10, y + 14, mx + 70, y + 14)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
@@ -1519,6 +1577,30 @@ function FaqModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+function AppHeader({ networkStatus, screen, medico, onProfileClick, onWifiClick, onSettingsClick, onFaqClick }: { networkStatus: NetworkStatus; screen: Screen; medico?: Medico | null; onProfileClick: () => void; onWifiClick: () => void; onSettingsClick: () => void; onFaqClick: () => void }) {
+  const { tamizajeActual, paqueteEnviadoEn } = usePatient()
+  const [notifItems, setNotifItems] = useState<ProcedimientoNotif[]>([])
+  const [showNotif, setShowNotif] = useState(false)
+
+  useEffect(() => {
+    setNotifItems([])
+    if (!paqueteEnviadoEn) return
+    const procedimientos = getProcedimientosPorSintomas(tamizajeActual?.sintomas ?? [])
+    if (!procedimientos.length) return
+    const timers = procedimientos.map((p, i) =>
+      setTimeout(() => setNotifItems(prev => [...prev, p]), (i + 1) * 5000)
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [paqueteEnviadoEn])
+
+  return (
+    <>
+      <TopBar networkStatus={networkStatus} screen={screen} medico={medico} notifItems={notifItems} onProfileClick={onProfileClick} onWifiClick={onWifiClick} onSettingsClick={onSettingsClick} onFaqClick={onFaqClick} onBellClick={() => setShowNotif(true)} />
+      {showNotif && <NotificacionesModal items={notifItems} onClose={() => setShowNotif(false)} />}
+    </>
+  )
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('tutorial')
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>('online')
@@ -1558,7 +1640,7 @@ export default function App() {
                 <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 13.8, color: '#a9d0ec' }}>{medico.establecimiento}</span>
               </div>
             )}
-            <TopBar networkStatus={networkStatus} screen={screen} medico={medico} onProfileClick={() => setShowProfile(true)} onWifiClick={() => setShowWifi(true)} onSettingsClick={() => setShowLanguage(true)} onFaqClick={() => setShowFaq(true)} />
+            <AppHeader networkStatus={networkStatus} screen={screen} medico={medico} onProfileClick={() => setShowProfile(true)} onWifiClick={() => setShowWifi(true)} onSettingsClick={() => setShowLanguage(true)} onFaqClick={() => setShowFaq(true)} />
             {showWifi && (
               <WifiModal networkStatus={networkStatus} setNetworkStatus={setNetworkStatus} onClose={() => setShowWifi(false)} />
             )}
