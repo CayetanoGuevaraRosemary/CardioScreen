@@ -686,7 +686,6 @@ function PaqueteScreen({ networkStatus }: { networkStatus: NetworkStatus }) {
                 <span style={{ fontSize: 16.1, fontWeight: 500, color: sintomas[key] ? '#7f1d1d' : '#334155', fontFamily: 'Outfit, sans-serif' }}>{label}</span>
               </label>
               
-              {/* Nuevo Input que aparece solo si "otro" está marcado */}
               {key === 'otro' && sintomas['otro'] && (
                 <input
                   type="text"
