@@ -11,8 +11,9 @@ export function getInstrucciones(resultado: Resultado): string[] {
       ]
     case 'repetir':
       return [
-        'Repita la medición en 1 hora, manteniendo al bebé tranquilo y bien perfundido.',
-        'Si el segundo resultado también es limítrofe o peor, trátelo como positivo.',
+        'Repita la medición hasta 3 veces, con al menos 1 hora entre cada intento (proceso total: hasta 3 horas).',
+        'Mantenga al bebé tranquilo, tibio y bien perfundido entre cada toma.',
+        'Si algún resultado posterior es limítrofe o peor, trátelo como positivo.',
         'Observe signos clínicos de alarma mientras espera.',
       ]
     default:
