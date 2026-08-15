@@ -297,7 +297,7 @@ export default function TutorialScreen({ onIniciarTamizaje }: { onIniciarTamizaj
           <span className="text-3xl">✓</span>
           <span className="font-sans text-base font-bold text-result-green-text">Tamizaje listo</span>
           <p className="font-sans text-xs leading-relaxed text-result-green-text">
-            NeoAlerta utilizará tus mediciones junto con la altitud y la información clínica para orientar el nivel de riesgo.
+            Sunqu utilizará tus mediciones junto con la altitud y la información clínica para orientar el nivel de riesgo.
           </p>
         </div>
         <button
