@@ -49,7 +49,7 @@ Equipo **LifeHackers**
 - Login seguro por código de doctor y contraseña
 - Tutorial / guía clínica rápida de tamizaje, paso a paso y reutilizable en cualquier momento
 - Medición de SpO₂ preductal y postductal, con umbrales ajustados automáticamente según la altitud del establecimiento (vía geolocalización, editable si falla)
-- Identificación del paciente por DNI, con autocompletado de datos e historial de tamizajes previos
+- Identificación del paciente por DNI/CNV, con autocompletado de datos e historial de tamizajes previos
 - Alertas de riesgo con recomendaciones de protocolo personalizadas según los valores obtenidos y los síntomas reportados, más los pasos a seguir en caso de duda
 - Cardio-Packet: resumen clínico del caso, listo para enviar o compartir
 - Red de derivación: documento de referencia en formato oficial MINSA + hospitales cercanos con llamada directa y teleconsulta gratuita de respaldo
