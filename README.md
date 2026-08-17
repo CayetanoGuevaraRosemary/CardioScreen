@@ -25,7 +25,7 @@ El llenado de la referencia se reduce a completar los datos ya recogidos durante
 
 ## Comunidad médica
 
-Sunqu contempla una red de médicos activos y jubilados dispuestos a apoyar la causa. A través de un grupo de Telegram, el equipo puede compartir los casos más relevantes ("wow") del sistema y recibir comentarios, orientación y respaldo de la comunidad. La información del paciente y de sus padres se mantiene estrictamente confidencial en todo momento; solo se comparte lo estrictamente necesario para el intercambio clínico, nunca datos identificables.
+Sunqu contempla una red de médicos activos y jubilados dispuestos a apoyar la causa. A través de un grupo de Telegram, el equipo puede compartir los casos más relevantes del sistema y recibir comentarios, orientación y respaldo de la comunidad. La información del paciente y de sus padres se mantiene estrictamente confidencial en todo momento; solo se comparte lo estrictamente necesario para el intercambio clínico, nunca datos identificables.
 
 ## Desarrollado por
 
